@@ -18,9 +18,6 @@ import {
  * - 💾 Restore 2026 works by strictly separating Core vs Active state.
  */
 
-// --- API CONFIGURATION ---
-const apiKey = "AIzaSyDv1cbSZPXTgrts0diyJrx3JFX5-M7A6cU"; 
-
 // --- UTILS ---
 
 const pcmToWav = (base64PCM, sampleRate = 24000) => {
@@ -88,31 +85,32 @@ const MOCK_ROASTS = [
     "Wow, look at you avoiding all the interesting events. Boring!"
 ];
 
-// API Handler
+// API Handler – now uses Netlify function
 const callGemini = async (prompt, systemInstruction = "") => {
-  if (!apiKey) throw new Error("No API Key");
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-  const payload = {
-    contents: [{ parts: [{ text: prompt }] }],
-    systemInstruction: { parts: [{ text: systemInstruction }] }
-  };
-
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    const response = await fetch("/.netlify/functions/gemini", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, systemInstruction }),
     });
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
     const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "The oracle is silent.";
+    // data.result is the raw Gemini response from the function
+    return (
+      data.result?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "The oracle is silent."
+    );
   } catch (error) {
     console.warn("Gemini API Error:", error);
-    throw error; 
+    throw error;
   }
 };
 
+/*
 // TTS Handler
 const callGeminiTTS = async (text) => {
   if (!apiKey) return null;
@@ -138,7 +136,7 @@ const callGeminiTTS = async (text) => {
     console.error("TTS failed", e);
   }
   return null;
-};
+}; */
 
 const vibrate = (ms = 10) => {
   if (navigator.vibrate) navigator.vibrate(ms);
@@ -214,10 +212,25 @@ export default function BingoApp() {
 
   // --- STATE PERSISTENCE ---
 
-  const [userProfile, setUserProfile] = useState(() => {
-      try { return JSON.parse(localStorage.getItem('bingo_user_profile')) || { name: "Alex", seed: "Alex", bio: "Ready for 2026", customImage: null }; }
-      catch { return { name: "Alex", seed: "Alex", bio: "Ready for 2026", customImage: null }; }
-  });
+const [userProfile, setUserProfile] = useState(() => {
+    try { 
+      return JSON.parse(localStorage.getItem('bingo_user_profile')) || { 
+        name: "Stranger", 
+        seed: "Stranger", 
+        bio: "Ready for 2026", 
+        customImage: null 
+      }; 
+    }
+    catch { 
+      return { 
+        name: "Stranger", 
+        seed: "Stranger", 
+        bio: "Ready for 2026", 
+        customImage: null 
+      }; 
+    }
+});
+
 
   const [appSettings, setAppSettings] = useState(() => {
       try { return JSON.parse(localStorage.getItem('bingo_settings')) || { haptics: true, sound: true }; }
@@ -656,7 +669,7 @@ export default function BingoApp() {
           <div className="z-10 mb-12 mt-10">
               <p className="text-blue-500 font-bold tracking-widest uppercase mb-4 text-sm">2026 Edition</p>
               <h1 className="text-7xl font-black text-[#1A1E2C] leading-[0.9] tracking-tighter mb-6">Welcome<br/>To Chaos.</h1>
-              <p className="text-gray-500 font-medium text-lg max-w-xs">Predict the future. Track the madness. Become the prophet.</p>
+              <p className="text-gray-500 font-medium text-lg max-w-xs">Predict the future. Track the madness.<br/>Play Bingo Of the Year.</p>
           </div>
           <button onClick={() => setCurrentScreen('app')} className="w-20 h-20 rounded-full bg-[#1A1E2C] text-white flex items-center justify-center shadow-2xl z-20"><ArrowRight size={32} /></button>
       </div>
