@@ -877,7 +877,203 @@ const [userProfile, setUserProfile] = useState(() => {
       };
       return (<div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/40 backdrop-blur-md animate-fade-in"><SoftCard className="w-full max-w-sm p-6 shadow-2xl relative"><button onClick={() => setEditingSquare(null)} className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full text-gray-500 hover:bg-gray-200"><X size={18}/></button><h3 className="text-xl font-black text-[#1A1E2C] mb-4">Edit Card</h3><div className="relative"><textarea value={text} onChange={(e) => setText(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl border border-gray-200 font-bold text-gray-700 mb-4 h-32 focus:outline-none focus:border-blue-500 resize-none" /><button onClick={magicRewrite} disabled={isRewriting} className="absolute bottom-6 right-2 bg-purple-100 text-purple-600 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-purple-200">{isRewriting ? <Loader2 size={12} className="animate-spin"/> : <Wand2 size={12}/>} Magic Swap</button></div><div className="flex gap-2"><button onClick={() => setEditingSquare(null)} className="flex-1 py-3 bg-gray-100 text-gray-500 font-bold rounded-xl">Cancel</button><button onClick={() => { saveEdit(text); }} className="flex-1 py-3 bg-[#1A1E2C] text-white font-bold rounded-xl shadow-lg">Save</button></div></SoftCard></div>);
   };
-  const ProfileView = () => (<div className="pb-32 pt-8 px-6 bg-[#F5F7FA] min-h-full">{isEditingProfile ? (<SoftCard className="mb-8"><div className="flex justify-between mb-4"><h3 className="font-bold">Edit Profile</h3><button onClick={() => setIsEditingProfile(false)}><X size={20}/></button></div><div className="space-y-4"><div><label className="text-xs font-bold text-gray-500">Name</label><input value={userProfile.name} onChange={(e) => setUserProfile({...userProfile, name: e.target.value})} className="w-full p-2 border rounded-lg bg-gray-50 text-sm font-bold"/></div><div><label className="text-xs font-bold text-gray-500">Avatar</label><div className="flex gap-2 items-center"><button onClick={() => fileInputRef.current.click()} className="flex-1 p-3 border rounded-lg bg-gray-50 text-sm font-bold text-gray-600 flex items-center justify-center gap-2"><Upload size={16}/> Upload Photo</button><input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" /><div className="w-12 h-12 bg-gray-100 rounded-full overflow-hidden shrink-0 border border-gray-200"><img src={userProfile.customImage || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userProfile.seed}`} className="w-full h-full object-cover"/></div></div>{userProfile.customImage && (<button onClick={() => setUserProfile({...userProfile, customImage: null})} className="text-xs text-red-500 font-bold mt-2">Remove Custom Photo</button>)}</div><button onClick={() => setIsEditingProfile(false)} className="w-full py-3 bg-black text-white rounded-xl font-bold text-sm">Save Changes</button></div></SoftCard>) : (<div className="flex flex-col items-center mb-8 relative"><button onClick={() => setIsEditingProfile(true)} className="absolute top-0 right-0 p-2 bg-white rounded-full shadow-sm text-gray-400 hover:text-blue-500"><Edit3 size={16}/></button><div className="w-24 h-24 rounded-full p-1 bg-white shadow-xl mb-4 relative overflow-hidden"><img src={userProfile.customImage || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userProfile.seed}`} alt="avatar" className="w-full h-full rounded-full bg-blue-100 object-cover" /></div><h2 className="text-2xl font-bold text-[#1A1E2C]">{userProfile.name}</h2><p className="text-gray-500 text-sm">{userProfile.bio}</p></div>)}<h3 className="text-lg font-bold text-[#1A1E2C] mb-4">Settings</h3><div className="space-y-3 mb-12"><SoftCard className="!p-4 flex items-center justify-between"><div className="flex items-center gap-3"><div className="p-2 bg-gray-100 rounded-lg"><Activity size={18}/></div><span className="font-bold text-sm">Haptics</span></div><Toggle checked={appSettings.haptics} onChange={(v) => setAppSettings({...appSettings, haptics: v})} /></SoftCard><SoftCard className="!p-4 flex items-center justify-between"><div className="flex items-center gap-3"><div className="p-2 bg-gray-100 rounded-lg"><Volume2 size={18}/></div><span className="font-bold text-sm">Sound Effects</span></div><Toggle checked={appSettings.sound} onChange={(v) => setAppSettings({...appSettings, sound: v})} /></SoftCard><button onClick={resetApp} className="w-full py-3 rounded-2xl border-2 border-red-100 text-red-500 font-bold text-sm flex items-center justify-center gap-2 mt-6"><Trash2 size={16}/> Reset App Data</button></div></div>);
+const ProfileView = () => (
+  <div className="pb-32 pt-8 px-6 bg-[#F5F7FA] min-h-full">
+    {isEditingProfile ? (
+      <SoftCard className="mb-8">
+        <div className="flex justify-between mb-4">
+          <h3 className="font-bold">Edit Profile</h3>
+          <button onClick={() => setIsEditingProfile(false)}>
+            <X size={20} />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-bold text-gray-500">Name</label>
+            <input
+              value={userProfile.name}
+              onChange={(e) =>
+                setUserProfile({ ...userProfile, name: e.target.value })
+              }
+              className="w-full p-2 border rounded-lg bg-gray-50 text-sm font-bold"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500">Avatar</label>
+            <div className="flex gap-2 items-center">
+              <button
+                onClick={() => fileInputRef.current.click()}
+                className="flex-1 p-3 border rounded-lg bg-gray-50 text-sm font-bold text-gray-600 flex items-center justify-center gap-2"
+              >
+                <Upload size={16} /> Upload Photo
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+                className="hidden"
+                accept="image/*"
+              />
+              <div className="w-12 h-12 bg-gray-100 rounded-full overflow-hidden shrink-0 border border-gray-200">
+                <img
+                  src={
+                    userProfile.customImage ||
+                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${userProfile.seed}`
+                  }
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+            {userProfile.customImage && (
+              <button
+                onClick={() =>
+                  setUserProfile({ ...userProfile, customImage: null })
+                }
+                className="text-xs text-red-500 font-bold mt-2"
+              >
+                Remove Custom Photo
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => setIsEditingProfile(false)}
+            className="w-full py-3 bg-black text-white rounded-xl font-bold text-sm"
+          >
+            Save Changes
+          </button>
+        </div>
+      </SoftCard>
+    ) : (
+      <div className="flex flex-col items-center mb-8 relative">
+        <button
+          onClick={() => setIsEditingProfile(true)}
+          className="absolute top-0 right-0 p-2 bg-white rounded-full shadow-sm text-gray-400 hover:text-blue-500"
+        >
+          <Edit3 size={16} />
+        </button>
+        <div className="w-24 h-24 rounded-full p-1 bg-white shadow-xl mb-4 relative overflow-hidden">
+          <img
+            src={
+              userProfile.customImage ||
+              `https://api.dicebear.com/7.x/avataaars/svg?seed=${userProfile.seed}`
+            }
+            alt="avatar"
+            className="w-full h-full rounded-full bg-blue-100 object-cover"
+          />
+        </div>
+        <h2 className="text-2xl font-bold text-[#1A1E2C]">
+          {userProfile.name}
+        </h2>
+        <p className="text-gray-500 text-sm">{userProfile.bio}</p>
+
+        {/* ⚠️ Early Beta + 🔒 Privacy Policy under profile picture */}
+        <div className="mt-4 flex items-center justify-center gap-4 opacity-80">
+          {/* ⚠️ Early Beta (emoji only, text on hover/tap) */}
+          <div
+            className="relative"
+            onMouseEnter={() => setShowBetaTooltip(true)}
+            onMouseLeave={() => setShowBetaTooltip(false)}
+            onClick={() => setShowBetaTooltip((v) => !v)}
+          >
+            <button className="px-3 py-1 rounded-full bg-white/70 border border-yellow-200 shadow-sm backdrop-blur-sm text-sm flex items-center justify-center">
+              <span className="text-lg">⚠️</span>
+            </button>
+            {showBetaTooltip && (
+              <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-72 p-3 bg-white rounded-2xl shadow-xl border text-[11px] text-gray-700 z-[60]">
+                <p className="font-bold mb-1 text-yellow-600">
+                  Early Beta Notice
+                </p>
+                <p>
+                  This is an early beta build — expect occasional bugs or weird
+                  behavior. If something breaks, DM{" "}
+                  <span className="font-mono font-bold text-blue-600">
+                    @Lou.IsChaosC
+                  </span>{" "}
+                  🙂
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* 🔒 Privacy Policy (emoji only, text on hover/tap) */}
+          <div
+            className="relative"
+            onMouseEnter={() => setShowPrivacyTooltip(true)}
+            onMouseLeave={() => setShowPrivacyTooltip(false)}
+            onClick={() => setShowPrivacyTooltip((v) => !v)}
+          >
+            <button className="px-3 py-1 rounded-full bg-white/70 border border-blue-200 shadow-sm backdrop-blur-sm text-sm flex items-center justify-center">
+              <span className="text-lg">🔒</span>
+            </button>
+            {showPrivacyTooltip && (
+              <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-80 p-3 bg-white rounded-2xl shadow-xl border text-[11px] text-gray-700 z-[60]">
+                <p className="font-bold mb-1 text-blue-600">Privacy Policy</p>
+                <ul className="space-y-1 list-disc ml-4">
+                  <li>
+                    Your Bingo cards, hits, and settings are stored locally on your device using <code>localStorage</code>.</li>
+                    
+                  <li> There are no accounts, passwords, trackers, or third-party analytics in this beta.</li>
+
+<li>
+  When you generate decks, headlines, or roasts, the card
+  text is sent to an AI model (Gemini) via a Netlify server
+  function so it can respond. Nothing is permanently stored,
+  shared, or sold.
+</li>
+
+<li>
+  Bug reports only include what YOU manually send. If something
+  looks broken, hit the ⚠️ and reach out — I actually read those.
+</li>
+
+<li>
+  An automatic bug-report button (the 🐞) is coming soon.
+  Right now everything is kept intentionally simple.
+</li>
+
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+
+    <h3 className="text-lg font-bold text-[#1A1E2C] mb-4 mt-4">Settings</h3>
+    <div className="space-y-3 mb-12">
+      <SoftCard className="!p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gray-100 rounded-lg">
+            <Activity size={18} />
+          </div>
+          <span className="font-bold text-sm">Haptics</span>
+        </div>
+        <Toggle
+          checked={appSettings.haptics}
+          onChange={(v) => setAppSettings({ ...appSettings, haptics: v })}
+        />
+      </SoftCard>
+      <SoftCard className="!p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gray-100 rounded-lg">
+            <Volume2 size={18} />
+          </div>
+          <span className="font-bold text-sm">Sound Effects</span>
+        </div>
+        <Toggle
+          checked={appSettings.sound}
+          onChange={(v) => setAppSettings({ ...appSettings, sound: v })}
+        />
+      </SoftCard>
+      <button
+        onClick={resetApp}
+        className="w-full py-3 rounded-2xl border-2 border-red-100 text-red-500 font-bold text-sm flex items-center justify-center gap-2 mt-6"
+      >
+        <Trash2 size={16} /> Reset App Data
+      </button>
+    </div>
+  </div>
+);
 
   // --- RENDER ---
 
@@ -896,66 +1092,6 @@ const [userProfile, setUserProfile] = useState(() => {
           <button onClick={() => setActiveTab('create')} className="bg-blue-500 p-3 rounded-full -mt-10 border-[6px] border-[#F5F7FA] shadow-lg"><Plus size={28} className="text-white"/></button>
           <button onClick={() => setShowShare(true)} className="text-gray-500 hover:text-white"><Share2 size={24}/></button>
       </div>
-      {/* ⚠️ Early Beta + 🔒 Privacy Policy */}
-<div className="fixed bottom-32 left-4 flex flex-col gap-3 z-[80]">
-
-  {/* ⚠️ BETA WARNING */}
-  <div
-    className="relative group"
-    onMouseEnter={() => setShowBetaTooltip(true)}
-    onMouseLeave={() => setShowBetaTooltip(false)}
-    onClick={() => setShowBetaTooltip(v => !v)}
-  >
-    <button
-      className="w-10 h-10 rounded-full bg-yellow-200 border border-yellow-300 shadow-md flex items-center justify-center text-xl"
-    >
-      ⚠️
-    </button>
-
-    {/* Tooltip */}
-    {showBetaTooltip && (
-      <div className="absolute left-14 top-1/2 -translate-y-1/2 w-64 p-3 bg-white rounded-2xl shadow-xl border text-[11px] text-gray-700 z-[200]">
-        <p className="font-bold mb-1 text-yellow-600">Early Beta Notice</p>
-        <p>
-          This is an early beta build — expect bugs.
-          If something breaks, DM <span className="font-mono font-bold text-blue-600">@Lou_IsChaosC</span> 🙂
-        </p>
-      </div>
-    )}
-  </div>
-
-  {/* 🔒 PRIVACY POLICY */}
-  <div
-    className="relative group"
-    onMouseEnter={() => setShowPrivacyTooltip(true)}
-    onMouseLeave={() => setShowPrivacyTooltip(false)}
-    onClick={() => setShowPrivacyTooltip(v => !v)}
-  >
-    <button
-      className="w-10 h-10 rounded-full bg-blue-200 border border-blue-300 shadow-md flex items-center justify-center text-xl"
-    >
-      🔒
-    </button>
-
-    {/* Tooltip */}
-    {showPrivacyTooltip && (
-      <div className="absolute left-14 top-1/2 -translate-y-1/2 w-72 p-3 bg-white rounded-2xl shadow-xl border text-[11px] text-gray-700 z-[200]">
-        <p className="font-bold mb-1 text-blue-600">Privacy Policy</p>
-        <ul className="space-y-1 list-disc ml-4">
-          <li>All card data is stored locally on your device via localStorage.</li>
-          <li>No account, passwords, or personal tracking exists(for now.)</li>
-          <li>
-            When generating decks or roasts, your text is sent to the Gemini API via a
-            Netlify function - not stored anywhere.
-          </li>
-          <li>Bug reports only include what YOU type manually. But like... just DM me. It's in the ⚠️ </li>
-          <li>Too lazy to add a bug report thingy right now but I will eventually. </li>
-          <li>Look for a 🐞 or something in the future.</li>
-        </ul>
-      </div>
-    )}
-  </div>
-</div>
       {selectedSquare && <EventModal />}
       {editingSquare && <EditModal />}
       {showShare && <SharePreview onClose={() => setShowShare(false)} />}
