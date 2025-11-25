@@ -195,13 +195,16 @@ const INITIAL_PREDICTIONS = [
 
 const INITIAL_BOARD = INITIAL_PREDICTIONS.map((text, i) => ({
   id: i,
-  text: text,
+  text,
   category: "General",
   hit: i === 12,
-  confidence: 50,
+  confidence: i === 12 
+    ? 100 
+    : Math.floor(Math.random() * 100) + 1, // 1–100 for non-center tiles
   locked: i === 12,
-  oracleText: null 
+  oracleText: null,
 }));
+
 
 // --- MAIN APP ---
 
@@ -250,9 +253,32 @@ const [userProfile, setUserProfile] = useState(() => {
   });
 
   const [myBoard, setMyBoard] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('bingo_active_board')) || INITIAL_BOARD; } 
-    catch { return INITIAL_BOARD; }
-  });
+  try {
+    const stored = JSON.parse(localStorage.getItem('bingo_active_board'));
+    if (Array.isArray(stored) && stored.length === 25) {
+      // If all tiles are at 50, treat it as legacy and re-roll confidence
+      const allFifty = stored.every(
+        (sq) => typeof sq.confidence === "number" && sq.confidence === 50
+      );
+
+      if (allFifty) {
+        return stored.map((sq, idx) => ({
+          ...sq,
+          confidence:
+            idx === 12
+              ? 100
+              : Math.floor(Math.random() * 100) + 1,
+        }));
+      }
+
+      return stored;
+    }
+    return INITIAL_BOARD;
+  } catch {
+    return INITIAL_BOARD;
+  }
+});
+
 
   // Initialize coreBoard properly if empty
   const [coreBoard, setCoreBoard] = useState(() => {
@@ -318,6 +344,15 @@ const [userProfile, setUserProfile] = useState(() => {
   useEffect(() => localStorage.setItem('bingo_board_locked', isBoardLocked), [isBoardLocked]);
   useEffect(() => localStorage.setItem('bingo_ai_credits', aiCredits.toString()), [aiCredits]);
   useEffect(() => localStorage.setItem('bingo_history', JSON.stringify(boardHistory)), [boardHistory]);
+
+  // 🔮 First-time users get an AI-generated board
+  useEffect(() => {
+    const storedBoard = localStorage.getItem('bingo_active_board');
+    if (!storedBoard) {
+      // First time on this device → generate a chaos/yearly board
+      generateDeck('yearly', true); // or 'chaos'
+    }
+  }, []);
 
   // Initialize win count on mount
   useEffect(() => {
@@ -504,7 +539,9 @@ const [userProfile, setUserProfile] = useState(() => {
       if (type === 'chaos' || type === 'yearly') prompt = "Generate 25 unhinged, sci-fi, or absurd global events for 2026. Unique items.";
 
       try {
-          const res = await callGemini(prompt + ` Return ONLY a JSON array of exactly 25 objects with this shape: { "text": string, "category": string, "confidence": int }. The item at index 12 must be text: "FREE SPACE". No markdown.`);
+          const res = await callGemini(
+  prompt + ` Return ONLY a JSON array of exactly 25 objects with this shape: { "text": string, "category": string, "confidence": a number from 1 to 100 }. The item at index 12 must be text: "FREE SPACE". No markdown, no extra text.`
+);
           const clean = res.replace(/```json|```/g, '').trim();
           const data = JSON.parse(clean);
           
@@ -518,11 +555,11 @@ const [userProfile, setUserProfile] = useState(() => {
 
       } catch (e) {
           const fallbackType = (type === 'yearly') ? 'chaos' : type;
-          const mockData = shuffleArray(MOCK_DECKS[fallbackType] || MOCK_DECKS['chaos']).map((txt, i) => ({ 
-              text: txt, 
-              category: "General", 
-              confidence: 50 
-          }));
+       const mockData = shuffleArray(MOCK_DECKS[fallbackType] || MOCK_DECKS['chaos']).map((txt, i) => ({ 
+    text: txt, 
+    category: "General", 
+    confidence: Math.floor(Math.random() * 100) + 1 
+}));
           
           if (autoApply) {
               applyNewBoard(mockData.map((item,i)=>({ ...item, id:i, hit: i===12, locked: i===12 })), type);
@@ -539,7 +576,7 @@ const [userProfile, setUserProfile] = useState(() => {
           id: i,
           text: item.text,
           category: item.category || "General",
-          confidence: item.confidence || 50,
+          confidence: Number(item.confidence) || Math.floor(Math.random() * 100) + 1,
           hit: i === 12,
           locked: i === 12,
           oracleText: null
@@ -562,7 +599,7 @@ const [userProfile, setUserProfile] = useState(() => {
           id: i,
           text: item.text,
           category: item.category || "General",
-          confidence: item.confidence || 50,
+          confidence: Number(item.confidence) || Math.floor(Math.random() * 100) + 1,
           hit: i === 12, // Auto hit center
           locked: i === 12,
           oracleText: null
