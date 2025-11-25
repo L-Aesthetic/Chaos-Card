@@ -297,6 +297,9 @@ const [userProfile, setUserProfile] = useState(() => {
   // Transients
   const [showConfetti, setShowConfetti] = useState(false);
   const [selectedSquare, setSelectedSquare] = useState(null); 
+  // --- Beta + Privacy Tooltip State ---
+  const [showBetaTooltip, setShowBetaTooltip] = useState(false);
+  const [showPrivacyTooltip, setShowPrivacyTooltip] = useState(false);
   const [editingSquare, setEditingSquare] = useState(null); 
   const [showShare, setShowShare] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -893,6 +896,66 @@ const [userProfile, setUserProfile] = useState(() => {
           <button onClick={() => setActiveTab('create')} className="bg-blue-500 p-3 rounded-full -mt-10 border-[6px] border-[#F5F7FA] shadow-lg"><Plus size={28} className="text-white"/></button>
           <button onClick={() => setShowShare(true)} className="text-gray-500 hover:text-white"><Share2 size={24}/></button>
       </div>
+      {/* ⚠️ Early Beta + 🔒 Privacy Policy */}
+<div className="fixed bottom-32 left-4 flex flex-col gap-3 z-[80]">
+
+  {/* ⚠️ BETA WARNING */}
+  <div
+    className="relative group"
+    onMouseEnter={() => setShowBetaTooltip(true)}
+    onMouseLeave={() => setShowBetaTooltip(false)}
+    onClick={() => setShowBetaTooltip(v => !v)}
+  >
+    <button
+      className="w-10 h-10 rounded-full bg-yellow-200 border border-yellow-300 shadow-md flex items-center justify-center text-xl"
+    >
+      ⚠️
+    </button>
+
+    {/* Tooltip */}
+    {showBetaTooltip && (
+      <div className="absolute left-14 top-1/2 -translate-y-1/2 w-64 p-3 bg-white rounded-2xl shadow-xl border text-[11px] text-gray-700 z-[200]">
+        <p className="font-bold mb-1 text-yellow-600">Early Beta Notice</p>
+        <p>
+          This is an early beta build — expect bugs.
+          If something breaks, DM <span className="font-mono font-bold text-blue-600">@Lou_IsChaosC</span> 🙂
+        </p>
+      </div>
+    )}
+  </div>
+
+  {/* 🔒 PRIVACY POLICY */}
+  <div
+    className="relative group"
+    onMouseEnter={() => setShowPrivacyTooltip(true)}
+    onMouseLeave={() => setShowPrivacyTooltip(false)}
+    onClick={() => setShowPrivacyTooltip(v => !v)}
+  >
+    <button
+      className="w-10 h-10 rounded-full bg-blue-200 border border-blue-300 shadow-md flex items-center justify-center text-xl"
+    >
+      🔒
+    </button>
+
+    {/* Tooltip */}
+    {showPrivacyTooltip && (
+      <div className="absolute left-14 top-1/2 -translate-y-1/2 w-72 p-3 bg-white rounded-2xl shadow-xl border text-[11px] text-gray-700 z-[200]">
+        <p className="font-bold mb-1 text-blue-600">Privacy Policy</p>
+        <ul className="space-y-1 list-disc ml-4">
+          <li>All card data is stored locally on your device via localStorage.</li>
+          <li>No account, passwords, or personal tracking exists(for now.)</li>
+          <li>
+            When generating decks or roasts, your text is sent to the Gemini API via a
+            Netlify function - not stored anywhere.
+          </li>
+          <li>Bug reports only include what YOU type manually. But like... just DM me. It's in the ⚠️ </li>
+          <li>Too lazy to add a bug report thingy right now but I will eventually. </li>
+          <li>Look for a 🐞 or something in the future.</li>
+        </ul>
+      </div>
+    )}
+  </div>
+</div>
       {selectedSquare && <EventModal />}
       {editingSquare && <EditModal />}
       {showShare && <SharePreview onClose={() => setShowShare(false)} />}
