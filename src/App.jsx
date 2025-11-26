@@ -1103,7 +1103,7 @@ const ProfileView = () => (
   if (currentScreen === 'onboarding') return <OnboardingView />;
 
   return (
-    <div className="h-screen w-full bg-[#F5F7FA] overflow-hidden font-sans text-[#1A1E2C] relative select-none">
+    <div className="h-screen w-full bg-[#F5F7FA] overflow-hidden font-sans text-[#1A1E2C] relative">
       <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-[#E2E8F0] to-transparent -z-10"></div>
       <div className="h-full overflow-y-auto scrollbar-hide pb-24">
           {activeTab === 'home' && <HomeView />}
