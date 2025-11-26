@@ -236,15 +236,9 @@ export default function BingoApp() {
     }
   });
 
-  // Draft profile used while editing so typing feels instant
-  const [draftProfile, setDraftProfile] = useState(userProfile);
+  // Draft profile used while editing
+const [draftProfile, setDraftProfile] = useState(userProfile);
 
-  // Whenever we open the editor, refresh the draft from saved profile
-  useEffect(() => {
-    if (isEditingProfile) {
-      setDraftProfile(userProfile);
-    }
-  }, [isEditingProfile, userProfile]);
 
 
 
@@ -999,11 +993,16 @@ const ProfileView = () => (
     ) : (
       <div className="flex flex-col items-center mb-8 relative">
         <button
-          onClick={() => setIsEditingProfile(true)}
-          className="absolute top-0 right-0 p-2 bg-white rounded-full shadow-sm text-gray-400 hover:text-blue-500"
-        >
-          <Edit3 size={16} />
-        </button>
+  onClick={() => {
+    // snapshot current profile into the draft
+    setDraftProfile(userProfile);
+    setIsEditingProfile(true);
+  }}
+  className="absolute top-0 right-0 p-2 bg-white rounded-full shadow-sm text-gray-400 hover:text-blue-500"
+>
+  <Edit3 size={16} />
+</button>
+
         <div className="w-24 h-24 rounded-full p-1 bg-white shadow-xl mb-4 relative overflow-hidden">
           <img
             src={
