@@ -234,6 +234,17 @@ const [userProfile, setUserProfile] = useState(() => {
     }
 });
 
+  // Draft profile used while editing so typing feels instant
+  const [draftProfile, setDraftProfile] = useState(userProfile);
+
+  // Whenever we open the editor, refresh the draft from saved profile
+  useEffect(() => {
+    if (isEditingProfile) {
+      setDraftProfile(userProfile);
+    }
+  }, [isEditingProfile, userProfile]);
+
+
   const [appSettings, setAppSettings] = useState(() => {
       try { return JSON.parse(localStorage.getItem('bingo_settings')) || { haptics: true, sound: true }; }
       catch { return { haptics: true, sound: true }; }
@@ -907,17 +918,19 @@ const ProfileView = () => (
           </button>
         </div>
         <div className="space-y-4">
+          {/* NAME FIELD */}
           <div>
             <label className="text-xs font-bold text-gray-500">Name</label>
             <input
-  value={userProfile.name}
-  onChange={(e) =>
-    setUserProfile({ ...userProfile, name: e.target.value })
-  }
-  className="w-full p-2 border rounded-lg bg-gray-50 text-sm font-bold select-text"
-/>
-
+              value={draftProfile.name}
+              onChange={(e) =>
+                setDraftProfile({ ...draftProfile, name: e.target.value })
+              }
+              className="w-full p-2 border rounded-lg bg-gray-50 text-sm font-bold select-text"
+            />
           </div>
+
+          {/* AVATAR FIELD */}
           <div>
             <label className="text-xs font-bold text-gray-500">Avatar</label>
             <div className="flex gap-2 items-center">
@@ -937,6 +950,7 @@ const ProfileView = () => (
               <div className="w-12 h-12 bg-gray-100 rounded-full overflow-hidden shrink-0 border border-gray-200">
                 <img
                   src={
+                    draftProfile.customImage ||
                     userProfile.customImage ||
                     `https://api.dicebear.com/7.x/avataaars/svg?seed=${userProfile.seed}`
                   }
@@ -944,10 +958,10 @@ const ProfileView = () => (
                 />
               </div>
             </div>
-            {userProfile.customImage && (
+            {(draftProfile.customImage || userProfile.customImage) && (
               <button
                 onClick={() =>
-                  setUserProfile({ ...userProfile, customImage: null })
+                  setDraftProfile({ ...draftProfile, customImage: null })
                 }
                 className="text-xs text-red-500 font-bold mt-2"
               >
@@ -955,8 +969,13 @@ const ProfileView = () => (
               </button>
             )}
           </div>
+
+          {/* SAVE BUTTON */}
           <button
-            onClick={() => setIsEditingProfile(false)}
+            onClick={() => {
+              setUserProfile(draftProfile);   // commit changes
+              setIsEditingProfile(false);     // close editor
+            }}
             className="w-full py-3 bg-black text-white rounded-xl font-bold text-sm"
           >
             Save Changes
@@ -987,79 +1006,79 @@ const ProfileView = () => (
         <p className="text-gray-500 text-sm">{userProfile.bio}</p>
 
         {/* ⚠️ Early Beta + 🔒 Privacy Policy under profile picture */}
-<div className="mt-4 flex items-center justify-center gap-4 opacity-80 relative z-[80]">
-  {/* ⚠️ Early Beta */}
-  <div
-    className="relative"
-    onClick={(e) => {
-      e.stopPropagation();
-      setShowPrivacyTooltip(false);
-      setShowBetaTooltip((v) => !v);
-    }}
-  >
-    <button className="px-3 py-1 rounded-full bg-white/70 border border-yellow-200 shadow-sm backdrop-blur-sm text-sm flex items-center justify-center">
-      <span className="text-lg">⚠️</span>
-    </button>
+        <div className="mt-4 flex items-center justify-center gap-4 opacity-80 relative z-[80]">
+          {/* ⚠️ Early Beta */}
+          <div
+            className="relative"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowPrivacyTooltip(false);
+              setShowBetaTooltip((v) => !v);
+            }}
+          >
+            <button className="px-3 py-1 rounded-full bg-white/70 border border-yellow-200 shadow-sm backdrop-blur-sm text-sm flex items-center justify-center">
+              <span className="text-lg">⚠️</span>
+            </button>
 
-    {showBetaTooltip && (
-      <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-72 p-3 bg-white rounded-2xl shadow-xl border text-[11px] text-gray-700 z-[90]">
-        <p className="font-bold mb-1 text-yellow-600">Early Beta Notice</p>
-        <p>
-          This is an early beta build — expect occasional bugs or weird
-          behavior. If something breaks, DM{" "}
-          <span className="font-mono font-bold text-blue-600">
-            @Lou.IsChaosC
-          </span>{" "}
-          🙂
-        </p>
+            {showBetaTooltip && (
+              <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-72 p-3 bg-white rounded-2xl shadow-xl border text-[11px] text-gray-700 z-[90]">
+                <p className="font-bold mb-1 text-yellow-600">Early Beta Notice</p>
+                <p>
+                  This is an early beta build — expect occasional bugs or weird
+                  behavior. If something breaks, DM{" "}
+                  <span className="font-mono font-bold text-blue-600">
+                    @Lou.IsChaosC
+                  </span>{" "}
+                  🙂
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* 🔒 Privacy Policy */}
+          <div
+            className="relative"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowBetaTooltip(false);
+              setShowPrivacyTooltip((v) => !v);
+            }}
+          >
+            <button className="px-3 py-1 rounded-full bg-white/70 border border-blue-200 shadow-sm backdrop-blur-sm text-sm flex items-center justify-center">
+              <span className="text-lg">🔒</span>
+            </button>
+
+            {showPrivacyTooltip && (
+              <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-80 p-3 bg-white rounded-2xl shadow-xl border text-[11px] text-gray-700 z-[90]">
+                <p className="font-bold mb-1 text-blue-600">Privacy Policy</p>
+                <ul className="space-y-1 list-disc ml-4">
+                  <li>
+                    Your Bingo cards, hits, and settings are stored locally on your
+                    device using <code>localStorage</code>.
+                  </li>
+                  <li>
+                    There are no accounts, passwords, trackers, or third-party
+                    analytics in this beta.
+                  </li>
+                  <li>
+                    When you generate decks, headlines, or roasts, the card text is
+                    sent to an AI model (Gemini) via a Netlify server function so it
+                    can respond. Nothing is permanently stored, shared, or sold.
+                  </li>
+                  <li>
+                    Bug reports only include what YOU manually send. If something
+                    looks broken, hit the ⚠️ and reach out — I actually read those.
+                  </li>
+                  <li>
+                    An automatic bug-report button (the 🐞) is coming soon. Right now
+                    everything is kept intentionally simple.
+                  </li>
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    )}
-  </div>
-
-  {/* 🔒 Privacy Policy */}
-  <div
-    className="relative"
-    onClick={(e) => {
-      e.stopPropagation();
-      setShowBetaTooltip(false);
-      setShowPrivacyTooltip((v) => !v);
-    }}
-  >
-    <button className="px-3 py-1 rounded-full bg-white/70 border border-blue-200 shadow-sm backdrop-blur-sm text-sm flex items-center justify-center">
-      <span className="text-lg">🔒</span>
-    </button>
-
-    {showPrivacyTooltip && (
-      <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-80 p-3 bg-white rounded-2xl shadow-xl border text-[11px] text-gray-700 z-[90]">
-        <p className="font-bold mb-1 text-blue-600">Privacy Policy</p>
-        <ul className="space-y-1 list-disc ml-4">
-          <li>
-            Your Bingo cards, hits, and settings are stored locally on your
-            device using <code>localStorage</code>.
-          </li>
-          <li>
-            There are no accounts, passwords, trackers, or third-party
-            analytics in this beta.
-          </li>
-          <li>
-            When you generate decks, headlines, or roasts, the card text is
-            sent to an AI model (Gemini) via a Netlify server function so it
-            can respond. Nothing is permanently stored, shared, or sold.
-          </li>
-          <li>
-            Bug reports only include what YOU manually send. If something
-            looks broken, hit the ⚠️ and reach out — I actually read those.
-          </li>
-          <li>
-            An automatic bug-report button (the 🐞) is coming soon. Right now
-            everything is kept intentionally simple.
-          </li>
-        </ul>
-      </div>
-    )}
-  </div>
-</div>
-</div>
     )}
 
     <h3 className="text-lg font-bold text-[#1A1E2C] mb-4 mt-4">Settings</h3>
@@ -1097,6 +1116,7 @@ const ProfileView = () => (
     </div>
   </div>
 );
+
 
   // --- RENDER ---
 
