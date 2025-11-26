@@ -834,7 +834,16 @@ const [userProfile, setUserProfile] = useState(() => {
                   <div className="p-6 bg-white text-center">
                       <div className="bg-gray-50 rounded-xl p-3 text-left border border-gray-100">
                           <div className="flex justify-between items-center mb-2"><label className="text-xs font-bold text-gray-400 uppercase">Caption</label><button onClick={genCaption} disabled={loadingCaption} className="text-xs font-bold text-purple-600 flex items-center gap-1 hover:text-purple-800">{loadingCaption ? <Loader2 size={10} className="animate-spin"/> : <Sparkles size={10}/>} Magic Gen</button></div>
-                          <textarea className="w-full bg-transparent text-sm text-gray-600 font-medium resize-none focus:outline-none h-16" placeholder="Check out my 2026 Bingo card..." value={caption} onChange={(e) => setCaption(e.target.value)} />
+                          <textarea
+  className="w-full bg-transparent text-sm text-gray-600 font-medium resize-none focus:outline-none h-16 select-text"
+  placeholder="Check out my 2026 Bingo card..."
+  value={caption}
+  onChange={(e) => setCaption(e.target.value)}
+  autoComplete="on"
+  autoCorrect="on"
+  autoCapitalize="sentences"
+/>
+
                       </div>
                   </div>
               </div>
@@ -875,7 +884,17 @@ const [userProfile, setUserProfile] = useState(() => {
           setIsRewriting(true);
           try { const res = await callGemini(`Rewrite: "${text}". Make it funnier/chaotic. Return ONLY text.`); setText(res.replace(/"/g, '').trim()); } catch(e) { openConfirm("Magic failed.", null); } finally { setIsRewriting(false); }
       };
-      return (<div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/40 backdrop-blur-md animate-fade-in"><SoftCard className="w-full max-w-sm p-6 shadow-2xl relative"><button onClick={() => setEditingSquare(null)} className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full text-gray-500 hover:bg-gray-200"><X size={18}/></button><h3 className="text-xl font-black text-[#1A1E2C] mb-4">Edit Card</h3><div className="relative"><textarea value={text} onChange={(e) => setText(e.target.value)} className="w-full p-4 bg-gray-50 rounded-xl border border-gray-200 font-bold text-gray-700 mb-4 h-32 focus:outline-none focus:border-blue-500 resize-none" /><button onClick={magicRewrite} disabled={isRewriting} className="absolute bottom-6 right-2 bg-purple-100 text-purple-600 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-purple-200">{isRewriting ? <Loader2 size={12} className="animate-spin"/> : <Wand2 size={12}/>} Magic Swap</button></div><div className="flex gap-2"><button onClick={() => setEditingSquare(null)} className="flex-1 py-3 bg-gray-100 text-gray-500 font-bold rounded-xl">Cancel</button><button onClick={() => { saveEdit(text); }} className="flex-1 py-3 bg-[#1A1E2C] text-white font-bold rounded-xl shadow-lg">Save</button></div></SoftCard></div>);
+      return (<div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/40 backdrop-blur-md animate-fade-in"><SoftCard className="w-full max-w-sm p-6 shadow-2xl relative"><button onClick={() => setEditingSquare(null)} className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full text-gray-500 hover:bg-gray-200"><X size={18}/></button><h3 className="text-xl font-black text-[#1A1E2C] mb-4">Edit Card</h3><div className="relative">
+        <textarea
+  value={text}
+  onChange={(e) => setText(e.target.value)}
+  className="w-full p-4 bg-gray-50 rounded-xl border border-gray-200 font-bold text-gray-700 mb-4 h-32 focus:outline-none focus:border-blue-500 resize-none select-text"
+  autoComplete="on"
+  autoCorrect="on"
+  autoCapitalize="sentences"
+/>
+
+<button onClick={magicRewrite} disabled={isRewriting} className="absolute bottom-6 right-2 bg-purple-100 text-purple-600 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-purple-200">{isRewriting ? <Loader2 size={12} className="animate-spin"/> : <Wand2 size={12}/>} Magic Swap</button></div><div className="flex gap-2"><button onClick={() => setEditingSquare(null)} className="flex-1 py-3 bg-gray-100 text-gray-500 font-bold rounded-xl">Cancel</button><button onClick={() => { saveEdit(text); }} className="flex-1 py-3 bg-[#1A1E2C] text-white font-bold rounded-xl shadow-lg">Save</button></div></SoftCard></div>);
   };
 const ProfileView = () => (
   <div className="pb-32 pt-8 px-6 bg-[#F5F7FA] min-h-full">
@@ -891,12 +910,13 @@ const ProfileView = () => (
           <div>
             <label className="text-xs font-bold text-gray-500">Name</label>
             <input
-              value={userProfile.name}
-              onChange={(e) =>
-                setUserProfile({ ...userProfile, name: e.target.value })
-              }
-              className="w-full p-2 border rounded-lg bg-gray-50 text-sm font-bold"
-            />
+  value={userProfile.name}
+  onChange={(e) =>
+    setUserProfile({ ...userProfile, name: e.target.value })
+  }
+  className="w-full p-2 border rounded-lg bg-gray-50 text-sm font-bold select-text"
+/>
+
           </div>
           <div>
             <label className="text-xs font-bold text-gray-500">Avatar</label>
@@ -967,76 +987,79 @@ const ProfileView = () => (
         <p className="text-gray-500 text-sm">{userProfile.bio}</p>
 
         {/* ⚠️ Early Beta + 🔒 Privacy Policy under profile picture */}
-        <div className="mt-4 flex items-center justify-center gap-4 opacity-80">
-          {/* ⚠️ Early Beta (emoji only, text on hover/tap) */}
-          <div
-            className="relative"
-            onMouseEnter={() => setShowBetaTooltip(true)}
-            onMouseLeave={() => setShowBetaTooltip(false)}
-            onClick={() => setShowBetaTooltip((v) => !v)}
-          >
-            <button className="px-3 py-1 rounded-full bg-white/70 border border-yellow-200 shadow-sm backdrop-blur-sm text-sm flex items-center justify-center">
-              <span className="text-lg">⚠️</span>
-            </button>
-            {showBetaTooltip && (
-              <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-72 p-3 bg-white rounded-2xl shadow-xl border text-[11px] text-gray-700 z-[60]">
-                <p className="font-bold mb-1 text-yellow-600">
-                  Early Beta Notice
-                </p>
-                <p>
-                  This is an early beta build — expect occasional bugs or weird
-                  behavior. If something breaks, DM{" "}
-                  <span className="font-mono font-bold text-blue-600">
-                    @Lou.IsChaosC
-                  </span>{" "}
-                  🙂
-                </p>
-              </div>
-            )}
-          </div>
+<div className="mt-4 flex items-center justify-center gap-4 opacity-80 relative z-[80]">
+  {/* ⚠️ Early Beta */}
+  <div
+    className="relative"
+    onClick={(e) => {
+      e.stopPropagation();
+      setShowPrivacyTooltip(false);
+      setShowBetaTooltip((v) => !v);
+    }}
+  >
+    <button className="px-3 py-1 rounded-full bg-white/70 border border-yellow-200 shadow-sm backdrop-blur-sm text-sm flex items-center justify-center">
+      <span className="text-lg">⚠️</span>
+    </button>
 
-          {/* 🔒 Privacy Policy (emoji only, text on hover/tap) */}
-          <div
-            className="relative"
-            onMouseEnter={() => setShowPrivacyTooltip(true)}
-            onMouseLeave={() => setShowPrivacyTooltip(false)}
-            onClick={() => setShowPrivacyTooltip((v) => !v)}
-          >
-            <button className="px-3 py-1 rounded-full bg-white/70 border border-blue-200 shadow-sm backdrop-blur-sm text-sm flex items-center justify-center">
-              <span className="text-lg">🔒</span>
-            </button>
-            {showPrivacyTooltip && (
-              <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-80 p-3 bg-white rounded-2xl shadow-xl border text-[11px] text-gray-700 z-[60]">
-                <p className="font-bold mb-1 text-blue-600">Privacy Policy</p>
-                <ul className="space-y-1 list-disc ml-4">
-                  <li>
-                    Your Bingo cards, hits, and settings are stored locally on your device using <code>localStorage</code>.</li>
-                    
-                  <li> There are no accounts, passwords, trackers, or third-party analytics in this beta.</li>
-
-<li>
-  When you generate decks, headlines, or roasts, the card
-  text is sent to an AI model (Gemini) via a Netlify server
-  function so it can respond. Nothing is permanently stored,
-  shared, or sold.
-</li>
-
-<li>
-  Bug reports only include what YOU manually send. If something
-  looks broken, hit the ⚠️ and reach out — I actually read those.
-</li>
-
-<li>
-  An automatic bug-report button (the 🐞) is coming soon.
-  Right now everything is kept intentionally simple.
-</li>
-
-                </ul>
-              </div>
-            )}
-          </div>
-        </div>
+    {showBetaTooltip && (
+      <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-72 p-3 bg-white rounded-2xl shadow-xl border text-[11px] text-gray-700 z-[90]">
+        <p className="font-bold mb-1 text-yellow-600">Early Beta Notice</p>
+        <p>
+          This is an early beta build — expect occasional bugs or weird
+          behavior. If something breaks, DM{" "}
+          <span className="font-mono font-bold text-blue-600">
+            @Lou.IsChaosC
+          </span>{" "}
+          🙂
+        </p>
       </div>
+    )}
+  </div>
+
+  {/* 🔒 Privacy Policy */}
+  <div
+    className="relative"
+    onClick={(e) => {
+      e.stopPropagation();
+      setShowBetaTooltip(false);
+      setShowPrivacyTooltip((v) => !v);
+    }}
+  >
+    <button className="px-3 py-1 rounded-full bg-white/70 border border-blue-200 shadow-sm backdrop-blur-sm text-sm flex items-center justify-center">
+      <span className="text-lg">🔒</span>
+    </button>
+
+    {showPrivacyTooltip && (
+      <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-80 p-3 bg-white rounded-2xl shadow-xl border text-[11px] text-gray-700 z-[90]">
+        <p className="font-bold mb-1 text-blue-600">Privacy Policy</p>
+        <ul className="space-y-1 list-disc ml-4">
+          <li>
+            Your Bingo cards, hits, and settings are stored locally on your
+            device using <code>localStorage</code>.
+          </li>
+          <li>
+            There are no accounts, passwords, trackers, or third-party
+            analytics in this beta.
+          </li>
+          <li>
+            When you generate decks, headlines, or roasts, the card text is
+            sent to an AI model (Gemini) via a Netlify server function so it
+            can respond. Nothing is permanently stored, shared, or sold.
+          </li>
+          <li>
+            Bug reports only include what YOU manually send. If something
+            looks broken, hit the ⚠️ and reach out — I actually read those.
+          </li>
+          <li>
+            An automatic bug-report button (the 🐞) is coming soon. Right now
+            everything is kept intentionally simple.
+          </li>
+        </ul>
+      </div>
+    )}
+  </div>
+</div>
+</div>
     )}
 
     <h3 className="text-lg font-bold text-[#1A1E2C] mb-4 mt-4">Settings</h3>
