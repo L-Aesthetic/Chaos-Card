@@ -213,26 +213,28 @@ export default function BingoApp() {
   const [activeTab, setActiveTab] = useState('home');
   const [mode, setMode] = useState('play'); // 'play' vs 'edit'
 
+  // 👇 move this UP here so it's defined before useEffect reads it
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+
   // --- STATE PERSISTENCE ---
 
-const [userProfile, setUserProfile] = useState(() => {
-    try { 
-      return JSON.parse(localStorage.getItem('bingo_user_profile')) || { 
-        name: "Stranger", 
-        seed: "Stranger", 
-        bio: "Ready for 2026", 
-        customImage: null 
-      }; 
+  const [userProfile, setUserProfile] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('bingo_user_profile')) || {
+        name: "Stranger",
+        seed: "Stranger",
+        bio: "Ready for 2026",
+        customImage: null
+      };
+    } catch {
+      return {
+        name: "Stranger",
+        seed: "Stranger",
+        bio: "Ready for 2026",
+        customImage: null
+      };
     }
-    catch { 
-      return { 
-        name: "Stranger", 
-        seed: "Stranger", 
-        bio: "Ready for 2026", 
-        customImage: null 
-      }; 
-    }
-});
+  });
 
   // Draft profile used while editing so typing feels instant
   const [draftProfile, setDraftProfile] = useState(userProfile);
@@ -243,6 +245,7 @@ const [userProfile, setUserProfile] = useState(() => {
       setDraftProfile(userProfile);
     }
   }, [isEditingProfile, userProfile]);
+
 
 
   const [appSettings, setAppSettings] = useState(() => {
@@ -305,7 +308,7 @@ const [userProfile, setUserProfile] = useState(() => {
     catch { return []; }
   });
   
-  // Transients
+    // Transients
   const [showConfetti, setShowConfetti] = useState(false);
   const [selectedSquare, setSelectedSquare] = useState(null); 
   // --- Beta + Privacy Tooltip State ---
@@ -313,7 +316,6 @@ const [userProfile, setUserProfile] = useState(() => {
   const [showPrivacyTooltip, setShowPrivacyTooltip] = useState(false);
   const [editingSquare, setEditingSquare] = useState(null); 
   const [showShare, setShowShare] = useState(false);
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [roastData, setRoastData] = useState(null);
   const [showRoast, setShowRoast] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -804,16 +806,28 @@ const [userProfile, setUserProfile] = useState(() => {
     const [caption, setCaption] = useState("");
     const [loadingCaption, setLoadingCaption] = useState(false);
     const genCaption = async () => {
-        if(!apiKey) { setCaption("No API Key - Write your own caption!"); return; }
-        setLoadingCaption(true);
-        const hitCount = myBoard.filter(s=>s.hit).length;
-        const hits = myBoard.filter(s=>s.hit && !s.locked).map(s=>s.text).slice(0,3).join(", ");
-        try {
-            const res = await callGemini(`Write a short, funny Instagram caption for my 2026 Bingo card. I have completed ${hitCount}/25 events. Highlights: ${hits || "None yet"}. Include hashtags.`);
-            setCaption(res.replace(/"/g, ''));
-        } catch(e) { setCaption("Error generating caption."); }
-        finally { setLoadingCaption(false); }
-    };
+  setLoadingCaption(true);
+  const hitCount = myBoard.filter((s) => s.hit).length;
+  const hits = myBoard
+    .filter((s) => s.hit && !s.locked)
+    .map((s) => s.text)
+    .slice(0, 3)
+    .join(", ");
+
+  try {
+    const res = await callGemini(
+      `Write a short, funny Instagram caption for my 2026 Bingo card. I have completed ${hitCount}/25 events. Highlights: ${
+        hits || "None yet"
+      }. Include hashtags.`
+    );
+    setCaption(res.replace(/"/g, ""));
+  } catch (e) {
+    setCaption("Error generating caption.");
+  } finally {
+    setLoadingCaption(false);
+  }
+};
+
     const handleShare = async () => {
         const shareText = `My 2026 Bingo Card: ${Math.round((myBoard.filter(s=>s.hit).length/25)*100)}% Complete!\n\n${caption}\n\n#Bingo2026`;
         if (navigator.share) {
