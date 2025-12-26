@@ -3,13 +3,25 @@ import { supabase } from "./supabase";
 
 function getDeviceId() {
   const key = "doomgo_device_id";
-  let id = localStorage.getItem(key);
-  if (!id) {
-    id = (crypto?.randomUUID?.() || `dg_${Math.random().toString(36).slice(2)}_${Date.now()}`);
-    localStorage.setItem(key, id);
+
+  // If somehow called outside browser, just return a non-persisted id
+  if (typeof window === "undefined") {
+    return (globalThis?.crypto?.randomUUID?.() || `dg_${Math.random().toString(36).slice(2)}_${Date.now()}`);
   }
-  return id;
+
+  try {
+    let id = window.localStorage.getItem(key);
+    if (!id) {
+      id = (globalThis?.crypto?.randomUUID?.() || `dg_${Math.random().toString(36).slice(2)}_${Date.now()}`);
+      window.localStorage.setItem(key, id);
+    }
+    return id;
+  } catch {
+    // localStorage blocked — still return a stable-ish id for this session
+    return (globalThis?.crypto?.randomUUID?.() || `dg_${Math.random().toString(36).slice(2)}_${Date.now()}`);
+  }
 }
+
 
 export async function startCheckout() {
   // Prefer logged-in identity, but allow anonymous device checkout too
@@ -24,12 +36,12 @@ export async function startCheckout() {
   } catch {}
 
   const deviceId = getDeviceId();
-
+const kind = userId ? "user" : "device";
   const res = await fetch("/.netlify/functions/create-checkout-session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     // ✅ send whichever identity we have
-    body: JSON.stringify({ userId, email, deviceId }),
+    body: JSON.stringify({ userId, email, deviceId, kind }),
   });
 
   const text = await res.text();

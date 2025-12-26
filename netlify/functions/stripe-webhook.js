@@ -30,76 +30,143 @@ export const handler = async (event) => {
     );
 
     // We rely on: client_reference_id = Supabase user id
-    const setPro = async ({ userId, customerId, subId, periodEnd, isPro }) => {
-      const { error } = await supabaseAdmin
+const setPro = async ({ userId, deviceId, customerId, subId, periodEnd, isPro }) => {
+  const patch = {
+    is_pro: isPro,
+    stripe_customer_id: customerId || null,
+    stripe_subscription_id: subId || null,
+    pro_current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+  };
+
+  if (userId) {
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update(patch)
+      .eq("id", userId);
+    if (error) throw error;
+    return;
+  }
+
+  if (deviceId) {
+    // Try update first (most likely row already exists because your app upserts presence)
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .update(patch)
+      .eq("device_id", deviceId)
+      .select("device_id")
+      .maybeSingle();
+
+    if (error) throw error;
+
+    // If no row existed, upsert one (safe fallback)
+    if (!data?.device_id) {
+      const { error: upsertErr } = await supabaseAdmin
         .from("profiles")
-        .update({
-          is_pro: isPro,
-          stripe_customer_id: customerId || null,
-          stripe_subscription_id: subId || null,
-          pro_current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
-        })
-        .eq("id", userId);
+        .upsert({ device_id: deviceId, ...patch }, { onConflict: "device_id" });
+      if (upsertErr) throw upsertErr;
+    }
+  }
+};
 
-      if (error) throw error;
-    };
 
-    if (stripeEvent.type === "checkout.session.completed") {
-      const s = stripeEvent.data.object;
+if (stripeEvent.type === "checkout.session.completed") {
+  const s = stripeEvent.data.object;
+
+  const md = s.metadata || {};
+  const userId = md.userId || null;
+  const deviceId = md.deviceId || null;
+
+  await setPro({
+    userId,
+    deviceId,
+    customerId: s.customer,
+    subId: s.subscription,
+    periodEnd: null,
+    isPro: true,
+  });
+}
+
+
+    if (
+  stripeEvent.type === "customer.subscription.updated" ||
+  stripeEvent.type === "customer.subscription.created"
+) {
+  const sub = stripeEvent.data.object;
+
+  const md = sub.metadata || {};
+  const userId = md.userId || null;
+  const deviceId = md.deviceId || null;
+
+  // ✅ Best path: update by identity saved in metadata
+  if (userId || deviceId) {
+    await setPro({
+      userId,
+      deviceId,
+      customerId: sub.customer,
+      subId: sub.id,
+      periodEnd: sub.current_period_end,
+      isPro: sub.status === "active" || sub.status === "trialing",
+    });
+  } else {
+    // ✅ Fallback: find the profile by subscription id
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("id, device_id")
+      .eq("stripe_subscription_id", sub.id)
+      .maybeSingle();
+
+    if (profile?.id || profile?.device_id) {
       await setPro({
-        userId: s.client_reference_id,
-        customerId: s.customer,
-        subId: s.subscription,
-        periodEnd: null,
-        isPro: true,
+        userId: profile?.id || null,
+        deviceId: profile?.device_id || null,
+        customerId: sub.customer,
+        subId: sub.id,
+        periodEnd: sub.current_period_end,
+        isPro: sub.status === "active" || sub.status === "trialing",
       });
     }
+  }
+}
 
-    if (stripeEvent.type === "customer.subscription.updated" || stripeEvent.type === "customer.subscription.created") {
-      const sub = stripeEvent.data.object;
-      const userId = sub.metadata?.userId || null; // optional if you add metadata later
 
-      // If we don’t have userId in metadata, we can’t safely map here.
-      // BUT checkout.session.completed already set the profile, so this is extra.
-      // (You can improve later by writing metadata.userId when creating session.)
+if (stripeEvent.type === "customer.subscription.deleted") {
+  const sub = stripeEvent.data.object;
 
-      // Still update period end if we can find profile by subscription id:
-      const { data: profile } = await supabaseAdmin
-        .from("profiles")
-        .select("id")
-        .eq("stripe_subscription_id", sub.id)
-        .maybeSingle();
+  const md = sub.metadata || {};
+  const userId = md.userId || null;
+  const deviceId = md.deviceId || null;
 
-      if (profile?.id) {
-        await setPro({
-          userId: profile.id,
-          customerId: sub.customer,
-          subId: sub.id,
-          periodEnd: sub.current_period_end,
-          isPro: sub.status === "active" || sub.status === "trialing",
-        });
-      }
+  // ✅ Best path: update by metadata identity
+  if (userId || deviceId) {
+    await setPro({
+      userId,
+      deviceId,
+      customerId: sub.customer,
+      subId: sub.id,
+      periodEnd: sub.current_period_end,
+      isPro: false,
+    });
+  } else {
+    // ✅ Fallback: find by subscription id
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("id, device_id")
+      .eq("stripe_subscription_id", sub.id)
+      .maybeSingle();
+
+    if (profile?.id || profile?.device_id) {
+      await setPro({
+        userId: profile?.id || null,
+        deviceId: profile?.device_id || null,
+        customerId: sub.customer,
+        subId: sub.id,
+        periodEnd: sub.current_period_end,
+        isPro: false,
+      });
     }
+  }
+}
 
-    if (stripeEvent.type === "customer.subscription.deleted") {
-      const sub = stripeEvent.data.object;
-
-      const { data: profile } = await supabaseAdmin
-        .from("profiles")
-        .select("id")
-        .eq("stripe_subscription_id", sub.id)
-        .maybeSingle();
-
-      if (profile?.id) {
-        await setPro({
-          userId: profile.id,
-          customerId: sub.customer,
-          subId: sub.id,
-          periodEnd: sub.current_period_end,
-          isPro: false,
-        });
-      }
-    }
 
     return { statusCode: 200, body: "ok" };
   } catch (e) {
