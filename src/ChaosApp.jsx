@@ -569,7 +569,11 @@ const canonBase = normalizeBoard(
     id: i,
     text: item.text,
     category: item.category || "General",
-    confidence: Number(item.confidence) || 50,
+    confidence:
+  typeof item.confidence === "number"
+    ? item.confidence
+    : (typeof item.chaosWeight === "number" ? item.chaosWeight : 50),
+
     // don't force hit here (we’ll merge user progress below)
     oracleText: null,
   }))
@@ -2107,7 +2111,49 @@ const DisclaimerModal = () => {
   );
 };
 
-  const RoastModal = () => (<div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/40 backdrop-blur-md animate-fade-in"><SoftCard className="w-full max-w-sm p-6 shadow-2xl relative bg-gradient-to-br from-orange-50 to-red-50 border-2 border-orange-100"><button onClick={() => setShowRoast(false)} className="absolute top-4 right-4 bg-white p-2 rounded-full text-gray-500 hover:bg-gray-100 shadow-sm"><X size={18}/></button><div className="flex justify-center mb-4"><div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center text-orange-500 text-3xl shadow-inner">🔥</div></div><h3 className="text-2xl font-black text-center text-[#1A1E2C] mb-2">Doomgo Report</h3><div className="bg-white p-4 rounded-2xl shadow-sm border border-orange-100 mb-6"><p className="text-sm text-gray-700 font-medium leading-relaxed italic">"{roastData}"</p></div><button onClick={() => setShowRoast(false)} className="w-full py-3 bg-[#1A1E2C] text-white font-bold rounded-xl shadow-lg">I accept my fate</button></SoftCard></div>);
+const RoastModal = () => {
+  const roastText =
+    typeof roastData === "string"
+      ? roastData
+      : (roastData?.text ?? roastData?.message ?? String(roastData ?? ""));
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-fade-in">
+      <SoftCard className="w-[min(92vw,720px)] max-h-[82vh] overflow-hidden shadow-2xl relative bg-gradient-to-br from-orange-50 to-red-50 border-2 border-orange-100">
+        <button
+          onClick={() => setShowRoast(false)}
+          className="absolute top-4 right-4 bg-white p-2 rounded-full text-gray-500 hover:bg-gray-100 shadow-sm z-10"
+        >
+          <X size={18} />
+        </button>
+
+        <div className="flex justify-center mb-4">
+          <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center text-orange-500 text-3xl shadow-inner">
+            🔥
+          </div>
+        </div>
+
+        <h3 className="text-2xl font-black text-center text-[#1A1E2C] mb-2">
+          Doomgo Report
+        </h3>
+
+        {/* ✅ Scrollable roast text area */}
+        <div className="bg-white rounded-2xl shadow-sm border border-orange-100 mb-6 p-4 max-h-[52vh] overflow-y-auto">
+          <p className="text-sm text-gray-700 font-medium leading-relaxed whitespace-pre-wrap italic">
+            {roastText ? `"${roastText}"` : "…"}
+          </p>
+        </div>
+
+        <button
+          onClick={() => setShowRoast(false)}
+          className="w-full py-3 bg-[#1A1E2C] text-white font-bold rounded-xl shadow-lg"
+        >
+          I accept my fate
+        </button>
+      </SoftCard>
+    </div>
+  );
+};
   const EditModal = () => {
       const [text, setText] = useState(editingSquare.text);
       const [isRewriting, setIsRewriting] = useState(false);
@@ -2527,7 +2573,7 @@ if (loading || !adminState) {
         Privacy Policy
       </a>
     </div>
-    
+
     <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-[#1A1E2C] text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-12 z-40">
       <button onClick={() => setActiveTab('home')} className={activeTab==='home' ? 'text-white' : 'text-gray-500'}>
         <Home size={24}/>

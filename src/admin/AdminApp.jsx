@@ -247,13 +247,18 @@ const USER_REGION_DATA = [
   { name: 'Oceania', users: 8200, color: '#10B981' },
 ];
 
-const INITIAL_CANON_DECK = Array.from({ length: 25 }, (_, i) => ({
-  id: i,
-  text: i === 12 ? "FREE SPACE" : `Event ${i + 1}: [Placeholder]`,
-  category: i === 12 ? "Special" : "General",
-  chaosWeight: i === 12 ? 100 : Math.floor(Math.random() * 100),
-  isLocked: i === 12
-}));
+const INITIAL_CANON_DECK = Array.from({ length: 25 }, (_, i) => {
+  const w = i === 12 ? 100 : Math.floor(Math.random() * 100);
+  return {
+    id: i,
+    text: i === 12 ? "DOOMGO 2026 (CROWN)" : `Event ${i + 1}: [Placeholder]`,
+    category: i === 12 ? "Special" : "General",
+    chaosWeight: w,
+    confidence: w, // ✅ mirror for client boards
+    isLocked: i === 12,
+  };
+});
+
 
 const INITIAL_SUGGESTIONS = [
   { id: 101, text: "Billionaire builds actual pyramid", votes: 450, status: 'Pending' },
@@ -1045,19 +1050,163 @@ const cancelHardLockEdit = () => {
   );
 };
 
+// =====================
+// AI HELPERS (Admin)
+// Paste above normalizeDeck()
+// =====================
+const callGeminiAdmin = async (prompt, systemInstruction = "") => {
+  const res = await fetch("/.netlify/functions/gemini", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, systemInstruction }),
+  });
+
+  if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
+  const data = await res.json();
+
+  return (
+    data.result?.candidates?.[0]?.content?.parts?.[0]?.text ||
+    "The oracle is silent."
+  );
+};
+
+const stripFences = (s) =>
+  String(s || "")
+    .replace(/```json/gi, "```")
+    .replace(/```/g, "")
+    .trim();
+
+const extractJsonArraySubstring = (s) => {
+  const str = String(s || "");
+  const a = str.indexOf("[");
+  const b = str.lastIndexOf("]");
+  if (a !== -1 && b !== -1 && b > a) return str.slice(a, b + 1);
+  return null;
+};
+
+const safeParseJson = (s) => {
+  try { return JSON.parse(s); } catch { return null; }
+};
+
+// Accepts AI output in JSON (preferred) or line-list fallback.
+// Returns array of 25 objects: { text, category, chaosWeight }
+const parseCanonAi = (raw) => {
+  const cleaned = stripFences(raw);
+
+  // 1) try direct JSON
+  let parsed = safeParseJson(cleaned);
+
+  // 2) try substring [ ... ]
+  if (!parsed) {
+    const sub = extractJsonArraySubstring(cleaned);
+    if (sub) parsed = safeParseJson(sub);
+  }
+
+  // If AI returned { tiles: [...] }
+  if (parsed && !Array.isArray(parsed) && Array.isArray(parsed.tiles)) {
+    parsed = parsed.tiles;
+  }
+
+  if (Array.isArray(parsed)) {
+    const arr = parsed
+      .map((x) => ({
+        text: String(x?.text ?? x?.prediction ?? "").trim(),
+        category: String(x?.category ?? "General").trim(),
+        chaosWeight: typeof x?.chaosWeight === "number"
+          ? x.chaosWeight
+          : (typeof x?.confidence === "number" ? x.confidence : null),
+      }))
+      .filter((x) => x.text.length);
+
+    return arr;
+  }
+
+  // 3) fallback: parse as lines
+  const lines = cleaned
+    .split("\n")
+    .map((l) => l.replace(/^\s*[\-\*\d\.\)]\s*/g, "").trim())
+    .filter(Boolean);
+
+  return lines.map((t) => ({ text: t, category: "General", chaosWeight: null }));
+};
+
+const clamp01to100 = (n) => Math.max(0, Math.min(100, Math.round(Number(n) || 0)));
+
+const buildCanonPrompt = ({ year, chaosPolicy, deck }) => {
+  const brand = "Doomgo";
+  const multiplier = Number(chaosPolicy?.globalMultiplier ?? 1.0);
+  const absurdity = clamp01to100(chaosPolicy?.absurdityBias ?? 50);
+
+  // Build per-slot targets (use deck’s chaosWeight as base)
+  const targets = (deck || []).map((t, i) => {
+    const base = typeof t?.chaosWeight === "number" ? t.chaosWeight : 50;
+    const adjusted = clamp01to100(base * multiplier);
+    return { i, adjusted };
+  });
+
+  // Make AI respect order and weights
+  const targetList = targets
+    .map((x) => `${x.i}: ${x.adjusted}`)
+    .join(", ");
+
+  return `
+You are generating the OFFICIAL ${brand} ${year} Canon board (5x5).
+Return ONLY valid JSON (no markdown, no commentary).
+
+Rules:
+- Output must be a JSON array of EXACTLY 25 objects in index order 0..24.
+- Index 12 MUST be: { "text": "DOOMGO ${year} (CROWN)", "category": "Special", "chaosWeight": 100 }
+- Every other index must be a short, punchy prediction (max ~60 chars if possible).
+- Keep it fun + viral. No slurs/hate. No instructions for wrongdoing. Avoid graphic violence.
+- Categories must be ONE of: ["General","Tech","Politics","Nature","Space","Viral","Special"]
+- chaosWeight is 0..100. Higher = more absurd/sci-fi/unhinged.
+- Absurdity bias is ${absurdity}%:
+    - ~0% means mostly plausible mainstream events.
+    - ~100% means mostly absurd/sci-fi/chaotic events.
+- Use these chaosWeight targets per index (match as close as possible):
+  ${targetList}
+
+Return format example:
+[
+  {"text":"...", "category":"Tech", "chaosWeight":72},
+  ...
+  {"text":"DOOMGO ${year} (CROWN)","category":"Special","chaosWeight":100},
+  ...
+]
+`.trim();
+};
+
 
 const normalizeDeck = (deck) => {
   const src = Array.isArray(deck) && deck.length ? deck : INITIAL_CANON_DECK;
 
-  return src.map((t, i) => ({
-    // force a stable id even if supabase data is missing it
-    id: (t && (t.id ?? t.tileId)) ?? i,
-    text: t?.text ?? ( i === 12 ? "FREE SPACE" : `Event ${i + 1}: [Placeholder]`),
-    category: t?.category ?? (i === 12 ? "Special" : "General"),
-    chaosWeight: typeof t?.chaosWeight === "number" ? t.chaosWeight : (i === 12 ? 100 : 0),
-    isLocked: typeof t?.isLocked === "boolean" ? t.isLocked : i === 12,
-  }));
+  return src.map((t, i) => {
+    const id = (t && (t.id ?? t.tileId)) ?? i;
+
+    const text =
+      t?.text ??
+      (i === 12 ? "DOOMGO 2026 (CROWN)" : `Event ${i + 1}: [Placeholder]`);
+
+    const category = t?.category ?? (i === 12 ? "Special" : "General");
+
+    const w =
+      typeof t?.chaosWeight === "number"
+        ? t.chaosWeight
+        : (typeof t?.confidence === "number" ? t.confidence : (i === 12 ? 100 : 50));
+
+    const weight = clamp01to100(w);
+
+    return {
+      id,
+      text,
+      category,
+      chaosWeight: weight,
+      confidence: typeof t?.confidence === "number" ? clamp01to100(t.confidence) : weight, // ✅ keep both
+      isLocked: typeof t?.isLocked === "boolean" ? t.isLocked : i === 12,
+    };
+  });
 };
+
 
 /**
  * 2️⃣ CANON DECK VIEW
@@ -1092,6 +1241,8 @@ const isCanonHardLocked =
     setDraftTile({ ...tile }); // clone
   };
 
+  const [aiGenLoading, setAiGenLoading] = useState(false);
+
   const updateDraft = (field, value) => {
     setDraftTile((prev) => ({ ...prev, [field]: value }));
   };
@@ -1100,11 +1251,23 @@ const isCanonHardLocked =
   const saveTile = async () => {
     if (!draftTile) return;
 
-    const updatedDeck = localDeck.map((tile) =>
-      tile.id === draftTile.id
-        ? { ...tile, ...draftTile, id: tile.id, isLocked: tile.isLocked }
-        : tile
-    );
+const updatedDeck = localDeck.map((tile) =>
+  tile.id === draftTile.id
+    ? {
+        ...tile,
+        ...draftTile,
+        id: tile.id,
+        isLocked: tile.isLocked,
+        // ✅ keep client-compatible weight
+        confidence:
+          typeof draftTile?.confidence === "number"
+            ? clamp01to100(draftTile.confidence)
+            : clamp01to100(draftTile?.chaosWeight ?? tile.chaosWeight ?? tile.confidence ?? 50),
+        chaosWeight: clamp01to100(draftTile?.chaosWeight ?? tile.chaosWeight ?? 50),
+      }
+    : tile
+);
+
 
     setLocalDeck(updatedDeck);
 
@@ -1122,13 +1285,75 @@ const isCanonHardLocked =
     setDraftTile(null);
   };
 
-  const generateCanonWithAI = async () => {
-    const chaosMultiplier = 1.0;
+const generateCanonWithAI = async () => {
+  if (aiGenLoading) return;
+
+  setAiGenLoading(true);
+  try {
+    const year = Number(adminState?.activeYear ?? 2026);
+    const chaosPolicy = adminState?.chaosPolicy || { globalMultiplier: 1.0, absurdityBias: 50 };
+
+    // build prompt using your current deck weights + Chaos Logic sliders
+    const prompt = buildCanonPrompt({
+      year,
+      chaosPolicy,
+      deck: localDeck,
+    });
+
+    const systemInstruction =
+      "You generate Doomgo predictions. Do NOT say 'Chaos Cards'. Output only JSON.";
+
+    const raw = await callGeminiAdmin(prompt, systemInstruction);
+    const parsed = parseCanonAi(raw);
+
+    // Map parsed -> EXACTLY 25 slots.
+    // If AI returns fewer, we fill from existing localDeck.
+    const byIndex = new Array(25).fill(null);
+
+    // If AI returned 25 in order, use it directly:
+    if (parsed.length >= 25) {
+      for (let i = 0; i < 25; i++) byIndex[i] = parsed[i];
+    } else {
+      // Otherwise: use lines sequentially for non-center tiles
+      let p = 0;
+      for (let i = 0; i < 25; i++) {
+        if (i === 12) continue;
+        byIndex[i] = parsed[p] || null;
+        p++;
+      }
+    }
+
+    const multiplier = Number(chaosPolicy?.globalMultiplier ?? 1.0);
 
     const generatedDeck = localDeck.map((tile, i) => {
-      if (tile.isLocked) return tile;
-      const chaos = Math.min(100, Math.floor(tile.chaosWeight * chaosMultiplier));
-      return { ...tile, text: `AI Prediction ${i + 1} (Chaos ${chaos}%)`, chaosWeight: chaos };
+      if (tile.isLocked || i === 12) {
+        // hard enforce center branding
+        if (i === 12) {
+          return {
+            ...tile,
+            text: `DOOMGO ${year} (CROWN)`,
+            category: "Special",
+            chaosWeight: 100,
+            confidence: 100,
+          };
+        }
+        return tile;
+      }
+
+      const base = typeof tile.chaosWeight === "number" ? tile.chaosWeight : 50;
+      const adjustedWeight = clamp01to100(base * multiplier);
+
+      const ai = byIndex[i];
+      const text = String(ai?.text || "").trim() || tile.text;
+      const category = String(ai?.category || tile.category || "General").trim();
+
+      return {
+        ...tile,
+        text,
+        category,
+        chaosWeight: adjustedWeight,
+        confidence: adjustedWeight, // ✅ client uses this
+      };
     });
 
     setLocalDeck(generatedDeck);
@@ -1136,7 +1361,13 @@ const isCanonHardLocked =
     await setAdminState({
       canonDeck: generatedDeck,
     });
-  };
+  } catch (e) {
+    console.error("Generate canon AI failed:", e);
+  } finally {
+    setAiGenLoading(false);
+  }
+};
+
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1147,17 +1378,18 @@ const isCanonHardLocked =
         </h2>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={generateCanonWithAI}
-            disabled={isCanonHardLocked}
-            className={`px-4 py-2 rounded-xl font-bold text-xs ${
-              isCanonHardLocked
-                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                : 'bg-[#FF67D2] text-white hover:bg-[#ff4fc5]'
-            }`}
-          >
-            Generate Canon with AI
-          </button>
+<button
+  onClick={generateCanonWithAI}
+  disabled={isCanonHardLocked || aiGenLoading}
+  className={`px-4 py-2 rounded-xl font-bold text-xs ${
+    (isCanonHardLocked || aiGenLoading)
+      ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+      : 'bg-[#FF67D2] text-white hover:bg-[#ff4fc5]'
+  }`}
+>
+  {aiGenLoading ? "Generating…" : "Generate Canon with AI"}
+</button>
+
 
           {canonLocked ? <Badge type="danger">LOCKED</Badge> : <Badge type="success">EDITABLE</Badge>}
           <span className="text-xs text-slate-400 font-mono">ID: DG-CANON-2026-V1</span>
