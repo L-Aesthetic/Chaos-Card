@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Doomgo Privacy Policy</title>
+    <meta name="robots" content="index,follow" />
+    <style>
+      body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; margin: 0; background: #F5F7FA; color: #0f172a; }
+      .wrap { max-width: 900px; margin: 0 auto; padding: 32px 18px 80px; }
+      .card { background: white; border: 1px solid #e2e8f0; border-radius: 20px; padding: 22px; box-shadow: 0 10px 30px rgba(15,23,42,.06); }
+      h1 { font-size: 32px; margin: 0 0 8px; letter-spacing: -0.02em; }
+      h2 { font-size: 18px; margin: 22px 0 10px; }
+      p, li { line-height: 1.5; font-size: 14px; color: #334155; }
+      code { background: #f1f5f9; padding: 2px 6px; border-radius: 8px; font-size: 12px; }
+      .meta { font-size: 12px; color: #64748b; margin-bottom: 14px; }
+      a { color: #334155; }
+      .tag { display: inline-block; font-size: 11px; padding: 6px 10px; border-radius: 999px; background: #EEF2FF; color: #3730A3; font-weight: 700; }
+      .hr { height: 1px; background: #e2e8f0; margin: 18px 0; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <div class="tag">Doomgo</div>
+        <h1>Privacy Policy</h1>
+        <div class="meta">
+          Effective date: <strong>December 25, 2025</strong><br/>
+          Site: <a href="https://doomgo.world">https://doomgo.world</a><br/>
+          Contact: <a href="mailto:doomgo2026@gmail.com">doomgo2026@gmail.com</a>
+        </div>
+
+        <p>
+          Doomgo is a prediction/bingo game. This Privacy Policy explains what data Doomgo collects, how it’s used, and the choices you have.
+        </p>
+
+        <div class="hr"></div>
+
+        <h2>1) What Doomgo collects</h2>
+        <p><strong>A) Data stored on your device</strong></p>
+        <ul>
+          <li>Your boards, hits, settings, profile name, and app state are stored locally on your device using <code>localStorage</code>.</li>
+        </ul>
+
+        <p><strong>B) Anonymous device identifier</strong></p>
+        <ul>
+          <li>Doomgo creates an anonymous device ID (stored in your browser) so the app can function consistently and so we can see basic usage in the admin dashboard.</li>
+        </ul>
+
+        <p><strong>C) Basic “presence” / admin visibility</strong></p>
+        <ul>
+          <li>To understand active usage and keep Doomgo stable, Doomgo may send a small profile record to our database provider (Supabase), including: anonymous device ID, last-seen timestamp, a rough region guess (from browser locale), and your browser user-agent string.</li>
+        </ul>
+
+        <p><strong>D) Board logging (game analytics)</strong></p>
+        <ul>
+          <li>Doomgo may log board events (for example, when a board is locked or a new deck is activated) including: board type, whether it’s locked, a “chaos score,” and the tile text you’re playing with.</li>
+          <li>This is used to improve deck quality, balance, and reliability (for example, preventing broken center tiles or duplicate tokens).</li>
+        </ul>
+
+        <p><strong>E) AI features (Oracle / decks / captions)</strong></p>
+        <ul>
+          <li>When you use AI features (deck generation, Oracle text, roasts, captions, headlines), Doomgo sends the text you provide (and/or the tile text) to an AI model provider (Gemini) through a server function (Netlify) to generate a response.</li>
+          <li>We do not ask for or require your real name, phone number, or address to use Doomgo’s AI features.</li>
+        </ul>
+
+        <p><strong>F) Ads (Google AdSense)</strong></p>
+        <ul>
+          <li>Doomgo may show ads using Google AdSense. Ad providers may use cookies or similar technologies to deliver, measure, and personalize ads (where permitted).</li>
+          <li>In the EEA/UK/Switzerland, a consent message may be shown so you can choose how ads are delivered.</li>
+        </ul>
+
+        <p><strong>G) Payments (Stripe)</strong></p>
+        <ul>
+          <li>If you purchase Doomgo Plus, payments are processed by Stripe. Doomgo does not store your full card number. Stripe may collect payment and billing information per their policies.</li>
+        </ul>
+
+        <p><strong>H) Third-party avatar loading (Dicebear)</strong></p>
+        <ul>
+          <li>If you don’t upload a profile image, Doomgo may load an avatar from Dicebear based on a seed. Loading that avatar may make a request to Dicebear’s servers.</li>
+        </ul>
+
+        <h2>2) What Doomgo does <em>not</em> collect</h2>
+        <ul>
+          <li>No required accounts or passwords for basic play.</li>
+          <li>No selling of your personal information.</li>
+          <li>No “secret” third-party analytics SDK required to play the game (ads and payments are separate services).</li>
+        </ul>
+
+        <h2>3) How Doomgo uses data</h2>
+        <ul>
+          <li>To run the app (boards, saving progress, restoring state).</li>
+          <li>To operate the admin system (seeing active usage, stability, spam prevention, limiting abuse).</li>
+          <li>To improve the experience (deck quality, bug fixes, performance).</li>
+          <li>To provide AI features when you request them.</li>
+          <li>To show ads (if you’re not a Plus user) and measure ad performance.</li>
+          <li>To process purchases (Plus subscriptions) through Stripe.</li>
+        </ul>
+
+        <h2>4) Legal bases (EEA/UK)</h2>
+        <ul>
+          <li><strong>Consent</strong> for certain ad-related cookies/processing where required (via consent message).</li>
+          <li><strong>Legitimate interests</strong> for basic security, preventing abuse, and understanding app stability.</li>
+          <li><strong>Contract</strong> for providing paid features if you subscribe to Doomgo Plus.</li>
+        </ul>
+
+        <h2>5) Sharing & service providers</h2>
+        <p>Doomgo uses third parties to operate the service, including:</p>
+        <ul>
+          <li><strong>Supabase</strong> (database/auth/data storage for presence and board logs)</li>
+          <li><strong>Netlify</strong> (hosting and server functions)</li>
+          <li><strong>Google</strong> (AdSense and Gemini)</li>
+          <li><strong>Stripe</strong> (payments)</li>
+          <li><strong>Dicebear</strong> (avatar images, if used)</li>
+        </ul>
+        <p>
+          These providers may process data on our behalf. Their use of data is governed by their own policies and agreements.
+        </p>
+
+        <h2>6) Data retention</h2>
+        <ul>
+          <li><strong>LocalStorage</strong> data remains on your device until you clear it, reset the app, or clear site data in your browser.</li>
+          <li><strong>Presence/board logs</strong> may be retained as long as needed for operations, security, and product improvement. We may delete, aggregate, or anonymize data over time.</li>
+        </ul>
+
+        <h2>7) Your choices</h2>
+        <ul>
+          <li>You can clear Doomgo data anytime using the in-app “Reset App Data” button.</li>
+          <li>You can clear site storage in your browser settings (cookies/site data/local storage).</li>
+          <li>In EEA/UK/Switzerland, you can manage ad consent via the consent message when shown.</li>
+          <li>If you want us to delete server-side records tied to your anonymous device ID, email us at <a href="mailto:doomgo2026@gmail.com">doomgo2026@gmail.com</a> with your request. (If needed, we may ask for the device ID stored by Doomgo to locate your record.)</li>
+        </ul>
+
+        <h2>8) Children</h2>
+        <p>
+          Doomgo is not intended for children under 13. If you believe a child provided personal data to Doomgo, contact us and we will address it.
+        </p>
+
+        <h2>9) International transfers</h2>
+        <p>
+          Doomgo and its providers may process data in countries other than where you live. Where required, we rely on appropriate safeguards.
+        </p>
+
+        <h2>10) Updates</h2>
+        <p>
+          We may update this policy as Doomgo evolves. The effective date at the top will change when we do.
+        </p>
+
+        <div class="hr"></div>
+        <p class="meta">
+          Questions? Email <a href="mailto:doomgo2026@gmail.com">doomgo2026@gmail.com</a>.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
