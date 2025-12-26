@@ -806,7 +806,7 @@ useEffect(() => {
 const openShareModal = () => {
   try {
     console.log("Share button pressed");
-    if (!isPro && canShowAd(2)) markAdShown();
+    // ✅ Don't mark ads here — we only count it if Sponsored actually renders inside SharePreview
     setShowShare(true);
   } catch (e) {
     console.error("Failed to open share modal:", e);
@@ -1767,17 +1767,22 @@ const SharePreview = ({ onClose, isPro }) => {
   const [exportUrl, setExportUrl] = useState(null);
   const [exportFile, setExportFile] = useState(null);
 
-  const adMarkedRef = useRef(false);
+  // ✅ Decide once: should Sponsored show for THIS modal open?
+  const [showSponsored, setShowSponsored] = useState(false);
 
-useEffect(() => {
-  if (isPro) return;
-  if (adMarkedRef.current) return;
+  useEffect(() => {
+    if (isPro) {
+      setShowSponsored(false);
+      return;
+    }
 
-  if (canShowAd(2)) {
-    markAdShown();
-    adMarkedRef.current = true;
-  }
-}, [isPro]);
+    const allowed = canShowAd(2);
+    setShowSponsored(allowed);
+
+    // ✅ Only count it if we are actually going to render Sponsored
+    if (allowed) markAdShown();
+  }, [isPro]);
+
 
   const prepareShareAsset = useCallback(async () => {
     if (!cardRef.current) return;
@@ -2003,7 +2008,7 @@ useEffect(() => {
           </div>
         </div>
 
-{!isPro && canShowAd(2) && (
+{showSponsored && (
   <div className="px-6 pb-6 bg-white">
     <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2">
       Sponsored
@@ -2016,6 +2021,7 @@ useEffect(() => {
     />
   </div>
 )}
+
 
         <div className="p-4 bg-white border-t border-gray-100 flex gap-3 shrink-0 z-10">
           <button
