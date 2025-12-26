@@ -5,56 +5,54 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 });
 
 export const handler = async (event) => {
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, body: "Method Not Allowed" };
+  }
+
   try {
-    if (event.httpMethod !== "POST") {
-      return { statusCode: 405, body: "Method Not Allowed" };
+    const { userId, deviceId } = JSON.parse(event.body || "{}");
+
+    if (!deviceId) {
+      return { statusCode: 400, body: "Missing deviceId" };
     }
 
-    const { userId, email, deviceId, kind } = JSON.parse(event.body || "{}");
+    // Put your Stripe Price ID in Netlify env vars
+    // STRIPE_PRICE_ID=price_123...
+    const priceId = process.env.STRIPE_PRICE_ID;
+    if (!priceId) {
+      return { statusCode: 500, body: "Missing STRIPE_PRICE_ID env var" };
+    }
 
-// Require *some* stable identity
-const finalKind = kind || (userId ? "user" : "device");
-const ref = userId || deviceId;
+    const siteUrl = process.env.SITE_URL || "https://doomgo.world";
 
-if (!ref) {
-  return { statusCode: 400, body: JSON.stringify({ error: "Missing identity (userId or deviceId)" }) };
-}
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      line_items: [{ price: priceId, quantity: 1 }],
 
-const siteUrl = process.env.SITE_URL || "https://doomgo.world";
+      success_url: `${siteUrl}/?plus=success`,
+      cancel_url: `${siteUrl}/?plus=canceled`,
 
-const metadata = {
-  kind: finalKind,
-  userId: userId || "",
-  deviceId: deviceId || "",
-};
+      // Session metadata (available on checkout.session.completed)
+      metadata: {
+        userId: userId || "",
+        deviceId,
+      },
 
-const session = await stripe.checkout.sessions.create({
-  mode: "subscription",
-  line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
-
-  // ✅ If logged in, prefill email. If not, Checkout will still collect it.
-  ...(email ? { customer_email: email } : {}),
-
-  // ✅ Keep a reference too (handy for debugging), but metadata is the real mapping
-  client_reference_id: ref,
-
-  // ✅ Put identity in BOTH places so subscription events also carry it
-  metadata,
-  subscription_data: { metadata },
-
-  success_url: `${siteUrl}/?upgraded=1`,
-  cancel_url: `${siteUrl}/?upgrade=cancel`,
-  allow_promotion_codes: true,
-});
-
-
+      // Subscription metadata (available on customer.subscription.updated/created/deleted)
+      subscription_data: {
+        metadata: {
+          userId: userId || "",
+          deviceId,
+        },
+      },
+    });
 
     return {
       statusCode: 200,
       body: JSON.stringify({ url: session.url }),
     };
   } catch (e) {
-    console.error("create-checkout-session error:", e);
-    return { statusCode: 500, body: JSON.stringify({ error: e.message }) };
+    console.error("create_checkout error:", e);
+    return { statusCode: 500, body: e.message };
   }
 };
