@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from './lib/supabase';
+import { startCheckout } from './lib/billing';
+import AdSlot from "./components/AdSlot";
+import { canShowAd, markAdShown } from "./lib/adCap";
 import * as htmlToImage from 'html-to-image';
 import { 
   Home, Plus, User, Settings,  
@@ -333,6 +336,7 @@ export default function BingoApp() {
   const [activeTab, setActiveTab] = useState('home');
   const [mode, setMode] = useState('play'); // 'play' vs 'edit'
   const [adminState, setAdminState] = useState(null);
+  const [isPro, setIsPro] = useState(false);
   const [aiPolicy, setAiPolicy] = useState({
   enabled: true,
   monthlyCredits: 5,
@@ -799,15 +803,17 @@ useEffect(() => {
       setConfirmModal({ show: false, message: "", action: null });
   };
 
-  const openShareModal = () => {
+const openShareModal = () => {
   try {
     console.log("Share button pressed");
+    if (!isPro && canShowAd(2)) markAdShown();
     setShowShare(true);
   } catch (e) {
     console.error("Failed to open share modal:", e);
     openConfirm("Share UI failed to open. Check console.", null);
   }
 };
+
 
   const confirmAction = () => {
       if (confirmModal.action) confirmModal.action();
@@ -1750,7 +1756,7 @@ const showCrown = isFree || isWinningLine;
     );
   };
 
-const SharePreview = ({ onClose }) => {
+const SharePreview = ({ onClose, isPro }) => {
   const cardRef = useRef(null);
   const [caption, setCaption] = useState("");
   const [loadingCaption, setLoadingCaption] = useState(false);
@@ -1760,6 +1766,18 @@ const SharePreview = ({ onClose }) => {
   const [exportBlob, setExportBlob] = useState(null);
   const [exportUrl, setExportUrl] = useState(null);
   const [exportFile, setExportFile] = useState(null);
+
+  const adMarkedRef = useRef(false);
+
+useEffect(() => {
+  if (isPro) return;
+  if (adMarkedRef.current) return;
+
+  if (canShowAd(2)) {
+    markAdShown();
+    adMarkedRef.current = true;
+  }
+}, [isPro]);
 
   const prepareShareAsset = useCallback(async () => {
     if (!cardRef.current) return;
@@ -1985,6 +2003,20 @@ const SharePreview = ({ onClose }) => {
           </div>
         </div>
 
+{!isPro && canShowAd(2) && (
+  <div className="px-6 pb-6 bg-white">
+    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2">
+      Sponsored
+    </div>
+
+    <AdSlot
+      client="ca-pub-3803731780577395"
+      slot="1214488599"
+      className="rounded-2xl overflow-hidden"
+    />
+  </div>
+)}
+
         <div className="p-4 bg-white border-t border-gray-100 flex gap-3 shrink-0 z-10">
           <button
             onClick={onClose}
@@ -2090,6 +2122,79 @@ const DisclaimerModal = () => {
 
 <button onClick={magicRewrite} disabled={isRewriting} className="absolute bottom-6 right-2 bg-purple-100 text-purple-600 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-purple-200">{isRewriting ? <Loader2 size={12} className="animate-spin"/> : <Wand2 size={12}/>} Magic Swap</button></div><div className="flex gap-2"><button onClick={() => setEditingSquare(null)} className="flex-1 py-3 bg-gray-100 text-gray-500 font-bold rounded-xl">Cancel</button><button onClick={() => { saveEdit(text); }} className="flex-1 py-3 bg-[#1A1E2C] text-white font-bold rounded-xl shadow-lg">Save</button></div></SoftCard></div>);
   };
+
+  function DoomgoPlusCard() {
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const uid = data?.session?.user?.id;
+
+        // ✅ supports both logged-in users AND anonymous device users
+        let q = supabase.from("profiles").select("is_pro");
+        if (uid) q = q.eq("id", uid);
+        else q = q.eq("device_id", getDeviceId());
+
+        const { data: prof } = await q.maybeSingle();
+        setIsPro(!!prof?.is_pro);
+      } catch (e) {
+        console.warn("Pro check failed:", e);
+        setIsPro(false);
+      }
+    };
+    run();
+  }, []);
+
+  if (isPro) {
+    return (
+      <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm mb-6">
+        <div className="text-slate-900 font-black text-lg">Doomgo Plus</div>
+        <div className="text-slate-500 text-sm mt-1">
+          Active ✅ No ads • Unlimited AI • Bonus boards
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm mb-6">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="text-slate-900 font-black text-lg">Doomgo Plus</div>
+          <div className="text-slate-500 text-sm mt-1">
+            No ads • Unlimited AI • Theme packs • Holiday boards
+          </div>
+        </div>
+        <div className="text-[#6A4DFF] font-black">$4.99</div>
+      </div>
+
+      <button
+        onClick={async () => {
+          setLoading(true);
+          try {
+            await startCheckout();
+            // usually redirects; if not, stop loading
+            setLoading(false);
+          } catch (e) {
+            setLoading(false);
+            openConfirm(e?.message || "Checkout failed.", null);
+          }
+        }}
+        disabled={loading}
+        className="mt-4 w-full bg-[#6A4DFF] text-white font-bold py-3 rounded-2xl disabled:opacity-60"
+      >
+        {loading ? "Opening Stripe…" : "Upgrade to Plus"}
+      </button>
+
+      <div className="text-xs text-slate-400 mt-3">
+        Cancel anytime. Unlocks future theme packs + bonus boards as they drop.
+      </div>
+    </div>
+  );
+}
+
 const ProfileView = () => (
   <div className="pb-32 pt-8 px-6 bg-transparent min-h-full relative">
     <GeometricShape type="sphere" className="top-16 -left-10 opacity-[0.22] scale-75" />
@@ -2317,6 +2422,10 @@ const ProfileView = () => (
       </div>
     )}
 
+<DoomgoPlusCard />
+
+<h3 className="text-lg font-bold text-[#1A1E2C] mb-4 mt-4">Tools</h3>
+
     <h3 className="text-lg font-bold text-[#1A1E2C] mb-4 mt-4">Tools</h3>
 <div className="space-y-3 mb-12">
   <SoftCard className="!p-4">
@@ -2371,6 +2480,8 @@ const ProfileView = () => (
 </div>
 
   </div>
+
+  
 );
 
 if (loading || !adminState) {
@@ -2420,7 +2531,7 @@ if (loading || !adminState) {
 
     {selectedSquare && <EventModal />}
     {editingSquare && <EditModal />}
-    {showShare && <SharePreview onClose={() => setShowShare(false)} />}
+    {showShare && <SharePreview isPro={isPro} onClose={() => setShowShare(false)} />}
     {showRoast && <RoastModal />}
     {confirmModal.show && <ConfirmationModal />}
     {showDisclaimerModal && <DisclaimerModal />}
