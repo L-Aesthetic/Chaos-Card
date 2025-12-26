@@ -2521,7 +2521,13 @@ if (loading || !adminState) {
   {activeTab === 'profile' && ProfileView()}
 </div>
 
-
+{/* ✅ Legal links (AdSense-friendly) */}
+    <div className="fixed bottom-2 left-0 right-0 flex justify-center gap-3 text-[10px] text-slate-400 z-30">
+      <a href="/privacy.html" className="hover:text-slate-600 underline" target="_blank" rel="noreferrer">
+        Privacy Policy
+      </a>
+    </div>
+    
     <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-[#1A1E2C] text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-12 z-40">
       <button onClick={() => setActiveTab('home')} className={activeTab==='home' ? 'text-white' : 'text-gray-500'}>
         <Home size={24}/>
