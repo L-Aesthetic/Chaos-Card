@@ -16,7 +16,7 @@ export async function startCheckout() {
   const { data } = await supabase.auth.getSession();
   const userId = data?.session?.user?.id || null;
 
-  const res = await fetch("/.netlify/functions/create_checkout", {
+  const res = await fetch("/.netlify/functions/create-checkout-session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId, deviceId }),
