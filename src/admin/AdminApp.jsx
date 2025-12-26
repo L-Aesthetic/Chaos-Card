@@ -75,10 +75,12 @@ function AdminLogin({ onAuthed }) {
 // ADMIN ANALYTICS CONFIG
 // --------------------
 const TABLES = {
-  users: 'profiles',           // change if yours is different
-  boards: 'doomgo_boards',     // change if yours is different
-  purchases: 'doomgo_purchases'// change if yours is different
+  users: 'profiles',
+  boards: 'doomgo_boards',
+  purchases: 'doomgo_purchases',
+  subEvents: 'doomgo_subscription_events',
 };
+
 
 // Try to read a "region" value from user row (customize this once and you're done)
 const getUserRegion = (u) => (
@@ -103,6 +105,8 @@ const formatMoney = (cents) => {
   const dollars = (Number(cents || 0) / 100);
   return dollars.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 };
+
+const PRO_PRICE_CENTS = 499; // $4.99
 
 const pad2 = (n) => String(n).padStart(2, "0");
 
@@ -332,14 +336,20 @@ const DashboardView = ({ showToast }) => {
 
   const [loadingDash, setLoadingDash] = useState(true);
 
-  const [stats, setStats] = useState({
-    totalUsers: 0,
-    boardsCreated: 0,
-    globalChaos: 0,
-    revenueCents: 0,
-    supabaseMs: null,
-    oracleMs: null,
-  });
+const [stats, setStats] = useState({
+  totalUsers: 0,
+  boardsCreated: 0,
+  globalChaos: 0,
+  revenueCents: 0,
+
+  activeSubs: 0,
+  mrrCents: 0,
+  churn30d: 0,
+
+  supabaseMs: null,
+  oracleMs: null,
+});
+
 
   const [chartData, setChartData] = useState([]); // [{name,new,returning}]
   const [regionData, setRegionData] = useState([]); // [{name, users, color}]
@@ -373,8 +383,7 @@ const DashboardView = ({ showToast }) => {
         .from(TABLES.boards)
         .select('id', { count: 'exact', head: true });
 
-      // 3) REVENUE (sum in JS for now; later make RPC for server-side SUM)
-      // we'll use last 30 days by default for dashboard revenue
+      // 3) REVENUE (last 30 days)
       const revFrom = new Date();
       revFrom.setDate(revFrom.getDate() - 30);
 
@@ -391,14 +400,29 @@ const DashboardView = ({ showToast }) => {
         .order('created_at', { ascending: false })
         .limit(500);
 
-      // 5) TOP REGIONS (client-side aggregation; if you have tons of users, we’ll upgrade to SQL view later)
+      // 5) TOP REGIONS (client-side aggregation)
       const regionsReq = supabase
-  .from(TABLES.users)
-  .select('country, locale') // ✅ only keep columns you definitely have
-  .limit(10000);
+        .from(TABLES.users)
+        .select('region')
+        .limit(10000);
 
+      // 6) SUBS + CHURN
+      const subsReq = supabase
+        .from(TABLES.users)
+        .select("id, is_pro, pro_current_period_end")
+        .limit(20000);
 
-      // 6) SYSTEM STATUS latency
+      const churnFrom = new Date();
+      churnFrom.setDate(churnFrom.getDate() - 30);
+
+      const churnReq = supabase
+        .from(TABLES.subEvents)
+        .select("event_type, occurred_at")
+        .eq("event_type", "deleted")
+        .gte("occurred_at", churnFrom.toISOString())
+        .limit(5000);
+
+      // 7) SYSTEM STATUS latency
       const supaMsReq = measureSupabaseMs();
 
       const [
@@ -407,6 +431,8 @@ const DashboardView = ({ showToast }) => {
         revenueRes,
         chaosRes,
         regionsRes,
+        subsRes,
+        churnRes,
         supaMs,
       ] = await Promise.all([
         usersCountReq,
@@ -414,6 +440,8 @@ const DashboardView = ({ showToast }) => {
         revenueReq,
         chaosReq,
         regionsReq,
+        subsReq,
+        churnReq,
         supaMsReq,
       ]);
 
@@ -422,7 +450,7 @@ const DashboardView = ({ showToast }) => {
 
       // revenue sum (paid only)
       const revenueCents = (revenueRes.data || [])
-        .filter(p => (p.status || 'paid') === 'paid') // adjust if your status differs
+        .filter(p => (p.status || 'paid') === 'paid')
         .reduce((sum, p) => sum + Number(p.amount_cents || 0), 0);
 
       // global chaos avg
@@ -434,6 +462,19 @@ const DashboardView = ({ showToast }) => {
         ? Math.round(chaosVals.reduce((a, c) => a + c, 0) / chaosVals.length)
         : 0;
 
+      // active subs + MRR
+      const now = new Date();
+      const activeSubs = (subsRes.data || []).filter((p) => {
+        const end = p.pro_current_period_end ? new Date(p.pro_current_period_end) : null;
+        const inPeriod = end && end > now;
+        return !!p.is_pro || !!inPeriod;
+      }).length;
+
+      const mrrCents = activeSubs * PRO_PRICE_CENTS;
+
+      // churn 30d
+      const churn30d = (churnRes.data || []).length;
+
       // top regions aggregation
       const regionCounts = new Map();
       (regionsRes.data || []).forEach((u) => {
@@ -441,14 +482,12 @@ const DashboardView = ({ showToast }) => {
         regionCounts.set(r, (regionCounts.get(r) || 0) + 1);
       });
 
-      // take top 5
       const topRegions = [...regionCounts.entries()]
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5)
         .map(([name, users], idx) => ({
           name,
           users,
-          // keep your vibe colors; rotates nicely
           color: ['#6A4DFF', '#4D9BFF', '#FF67D2', '#A788FF', '#10B981'][idx % 5]
         }));
 
@@ -458,16 +497,19 @@ const DashboardView = ({ showToast }) => {
         boardsCreated,
         globalChaos,
         revenueCents,
+        activeSubs,
+        mrrCents,
+        churn30d,
         supabaseMs: supaMs,
       }));
 
       setRegionData(topRegions);
 
-      // chart data
       const series = await fetchGrowthSeries(timeRange);
       setChartData(series);
 
       if (showToast) showToast(`Dashboard refreshed (${timeRange})`);
+
     } catch (e) {
       console.error('Dashboard fetch failed:', e);
     } finally {
@@ -650,6 +692,25 @@ const fetchGrowthSeries = async (range) => {
       change: '',
       icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50'
     },
+    {
+  label: 'Active Subs',
+  value: stats.activeSubs.toLocaleString(),
+  change: '',
+  icon: CreditCard, color: 'text-indigo-500', bg: 'bg-indigo-50'
+},
+{
+  label: 'MRR (est)',
+  value: formatMoney(stats.mrrCents),
+  change: '',
+  icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-50'
+},
+{
+  label: 'Churn (30d)',
+  value: stats.churn30d.toLocaleString(),
+  change: '',
+  icon: AlertOctagon, color: 'text-rose-500', bg: 'bg-rose-50'
+},
+
   ];
 
 

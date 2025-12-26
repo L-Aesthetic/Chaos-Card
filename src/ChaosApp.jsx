@@ -78,20 +78,24 @@ const shuffleArray = (array) => {
 const isCenterToken = (text) => {
   const norm = String(text || "")
     .toUpperCase()
-    .replace(/[^A-Z0-9 ]+/g, " ")   // convert punctuation → space
-    .replace(/\s+/g, " ")          // collapse whitespace
+    .replace(/[^A-Z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 
-  // Handles:
-  // "FREE SPACE"
-  // "DOOMGO: 2026"
-  // "DOOMGO 2026 (CROWN)"
-  // "DOOMGO 2026 CROWN"
-  const isFree = norm === "FREE SPACE";
-  const isDoomgo = norm === "DOOMGO 2026" || norm === "DOOMGO 2026 CROWN" || (norm.startsWith("DOOMGO 2026") && norm.includes("CROWN"));
+  if (norm === "FREE SPACE") return true;
 
-  return isFree || isDoomgo;
+  // Matches:
+  // DOOMGO 2026
+  // DOOMGO 2026 CROWN
+  // DOOMGO 2026 (CROWN)
+  // DOOMGO 2031 CROWN
+  const hasDoomgo = norm.startsWith("DOOMGO ");
+  const hasYear = /\b\d{4}\b/.test(norm);
+  const hasCrown = /\bCROWN\b/.test(norm);
+
+  return hasDoomgo && hasYear && (hasCrown || norm === `DOOMGO ${norm.match(/\b\d{4}\b/)?.[0]}`);
 };
+
 
 
 // ✅ REPLACE enforceFreeCenter with this
@@ -105,9 +109,11 @@ const enforceFreeCenter = (data) => {
       .replace(/\s+/g, " ")
       .trim();
 
-  const crownIdx = arr.findIndex(
-    (item) => norm(item?.text).includes("DOOMGO 2026") && norm(item?.text).includes("CROWN")
-  );
+  const crownIdx = arr.findIndex((item) => {
+  const t = norm(item?.text);
+  return t.startsWith("DOOMGO ") && /\b\d{4}\b/.test(t) && /\bCROWN\b/.test(t);
+});
+
   const freeIdx = arr.findIndex((item) => norm(item?.text) === "FREE SPACE");
 
   const centerIdx = crownIdx >= 0 ? crownIdx : freeIdx;
@@ -344,17 +350,26 @@ const refreshProStatus = useCallback(async () => {
     const uid = data?.session?.user?.id;
 
     // ✅ supports both logged-in users AND anonymous device users
-    let q = supabase.from("profiles").select("is_pro");
-    if (uid) q = q.eq("id", uid);
-    else q = q.eq("device_id", getDeviceId());
+let q = supabase
+  .from("profiles")
+  .select("is_pro, pro_current_period_end");
 
-    const { data: prof, error } = await q.maybeSingle();
-    if (error) {
-      console.warn("Pro check failed:", error);
-      setIsPro(false);
-      return;
-    }
-    setIsPro(!!prof?.is_pro);
+if (uid) q = q.eq("auth_user_id", uid);   // ✅ match webhook
+else q = q.eq("device_id", getDeviceId());
+
+const { data: prof, error } = await q.maybeSingle();
+if (error) {
+  console.warn("Pro check failed:", error);
+  setIsPro(false);
+  return;
+}
+
+const inPeriod =
+  prof?.pro_current_period_end &&
+  new Date(prof.pro_current_period_end).getTime() > Date.now();
+
+setIsPro(!!prof?.is_pro || !!inPeriod);
+
   } catch (e) {
     console.warn("Pro check failed:", e);
     setIsPro(false);
@@ -1665,6 +1680,26 @@ const importBackupFromFile = async (file) => {
   </div>
 );
 
+const cleanCenterTileText = (text) => {
+  const raw = String(text || "");
+
+  // remove the word/marker "CROWN" (with or without parentheses)
+  let s = raw
+    .replace(/\(.*?CROWN.*?\)/gi, "")
+    .replace(/\bCROWN\b/gi, "");
+
+  // if this is a Doomgo center token, don't repeat "Free space" in the big text
+  if (/DOOMGO/i.test(s)) {
+    s = s.replace(/\bFREE\s*SPACE\b/gi, "");
+  }
+
+  s = s.replace(/\s+/g, " ").trim();
+
+  // fallback so center never goes blank
+  if (!s) return /DOOMGO/i.test(raw) ? "DOOMGO 2026" : "FREE SPACE";
+  return s;
+};
+
 
   const HomeView = () => (
   <div className="pb-32 pt-12 px-6 bg-transparent min-h-full relative">
@@ -1751,16 +1786,75 @@ const importBackupFromFile = async (file) => {
   )}
 </div>
 
-              <div className="flex gap-2">
-                  <button onClick={generateDoomgoRoast} className="p-2 bg-orange-100 text-orange-600 rounded-full hover:bg-orange-200 transition-colors active:scale-95" title="Roast"><Flame size={16} /></button>
-                  <button onClick={rewindHistory} disabled={boardHistory.length === 0} className={`p-2 rounded-full transition-colors ${boardHistory.length > 0 ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-gray-50 text-gray-300'}`} title="Undo"><History size={16} /></button>
-                  <button onClick={quickRefresh} className="p-2 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-colors active:scale-95" title="Refresh">{isRefreshing ? <Loader2 size={16} className="animate-spin"/> : <Sparkles size={16} />}</button>
-                  <button onClick={toggleLock} className={`p-2 rounded-full transition-colors ${isBoardLocked ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-400'}`}>{isBoardLocked ? <Lock size={16}/> : <Unlock size={16}/>}</button>
-                  <div className={`flex gap-1 p-1 rounded-full transition-all ${isBoardLocked ? 'bg-gray-100 opacity-50 pointer-events-none' : 'bg-gray-200'}`}>
-                      <button onClick={() => setMode('play')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${mode==='play' ? 'bg-white text-[#1A1E2C] shadow-sm' : 'text-gray-500'}`}><Zap size={12} className="inline mr-1"/> Play</button>
-                      <button onClick={() => setMode('edit')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${mode==='edit' ? 'bg-white text-[#1A1E2C] shadow-sm' : 'text-gray-500'}`}><Edit3 size={12} className="inline mr-1"/> Edit</button>
-                  </div>
-              </div>
+<div className="w-full flex flex-col md:flex-row md:items-center md:justify-end gap-2">
+  {/* Top row (wraps on mobile if needed) */}
+  <div className="flex flex-wrap gap-2 justify-end">
+    <button
+      onClick={generateDoomgoRoast}
+      className="p-2 bg-orange-100 text-orange-600 rounded-full hover:bg-orange-200 transition-colors active:scale-95"
+      title="Roast"
+    >
+      <Flame size={16} />
+    </button>
+
+    <button
+      onClick={rewindHistory}
+      disabled={boardHistory.length === 0}
+      className={`p-2 rounded-full transition-colors ${
+        boardHistory.length > 0
+          ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          : "bg-gray-50 text-gray-300"
+      }`}
+      title="Undo"
+    >
+      <History size={16} />
+    </button>
+
+    <button
+      onClick={quickRefresh}
+      className="p-2 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-colors active:scale-95"
+      title="Refresh"
+    >
+      {isRefreshing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+    </button>
+
+    <button
+      onClick={toggleLock}
+      className={`p-2 rounded-full transition-colors ${
+        isBoardLocked ? "bg-amber-100 text-amber-600" : "bg-gray-100 text-gray-400"
+      }`}
+      title={isBoardLocked ? "Locked" : "Unlocked"}
+    >
+      {isBoardLocked ? <Lock size={16} /> : <Unlock size={16} />}
+    </button>
+  </div>
+
+  {/* Bottom row on mobile / Right side on desktop */}
+  <div
+    className={`flex gap-1 p-1 rounded-full transition-all w-full md:w-auto justify-center ${
+      isBoardLocked ? "bg-gray-100 opacity-50 pointer-events-none" : "bg-gray-200"
+    }`}
+  >
+    <button
+      onClick={() => setMode("play")}
+      className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+        mode === "play" ? "bg-white text-[#1A1E2C] shadow-sm" : "text-gray-500"
+      }`}
+    >
+      <Zap size={12} className="inline mr-1" /> Play
+    </button>
+
+    <button
+      onClick={() => setMode("edit")}
+      className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+        mode === "edit" ? "bg-white text-[#1A1E2C] shadow-sm" : "text-gray-500"
+      }`}
+    >
+      <Edit3 size={12} className="inline mr-1" /> Edit
+    </button>
+  </div>
+</div>
+
           </div>
           <div className="grid grid-cols-5 gap-2 mb-8">
               {myBoard.map((sq, idx) => {
@@ -1798,7 +1892,7 @@ const showCrown = isFree || isWinningLine;
       />
 
       <p className="text-[8px] font-bold leading-tight line-clamp-3 select-none">
-  {sq.text}
+  {idx === 12 ? cleanCenterTileText(sq.text) : sq.text}
 </p>
 
 {/* ✅ Center tile helper label */}
@@ -2124,8 +2218,8 @@ const SharePreview = ({ onClose, isPro }) => {
 )}
 
                     <span className="text-[5px] font-bold leading-none overflow-hidden select-none">
-                      {sq.text.slice(0, 8)}..
-                    </span>
+  {(idx === 12 ? cleanCenterTileText(sq.text) : sq.text).slice(0, 8)}..
+</span>
                   </div>
                 );
               })}
@@ -2608,8 +2702,6 @@ const ProfileView = () => (
 <DoomgoPlusCard />
 
 <h3 className="text-lg font-bold text-[#1A1E2C] mb-4 mt-4">Tools</h3>
-
-    <h3 className="text-lg font-bold text-[#1A1E2C] mb-4 mt-4">Tools</h3>
 <div className="space-y-3 mb-12">
   <SoftCard className="!p-4">
     <p className="text-xs font-bold text-gray-500 uppercase mb-2">Backup</p>
