@@ -32,9 +32,8 @@ const session = await stripe.checkout.sessions.create({
   mode: "subscription",
   line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
 
-  // ✅ Stripe can collect email automatically if you don't provide one.
-  // If you *do* have it (logged-in), you can prefill it:
-  ...(email ? { customer_email: email } : { customer_creation: "always" }),
+  // ✅ If logged in, prefill email. If not, Checkout will still collect it.
+  ...(email ? { customer_email: email } : {}),
 
   // ✅ Keep a reference too (handy for debugging), but metadata is the real mapping
   client_reference_id: ref,
@@ -47,6 +46,7 @@ const session = await stripe.checkout.sessions.create({
   cancel_url: `${siteUrl}/?upgrade=cancel`,
   allow_promotion_codes: true,
 });
+
 
 
     return {
