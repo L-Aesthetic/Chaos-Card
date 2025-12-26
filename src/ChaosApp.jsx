@@ -1675,17 +1675,22 @@ const showCrown = isFree || isWinningLine;
 )}
 
 
-      {/* ✅ Crown ONLY for Chaos tile */}
-      {showCrown && (
+{/* ✅ Crown only on completed bingo line tiles */}
+{showCrown && (
   <Crown
     size={12}
-    className="absolute top-1 left-1 text-white/80 drop-shadow-sm"
+    className="absolute top-1 left-1 text-yellow-300 drop-shadow-sm"
   />
 )}
 
-{sq.hit && !isFree && (
-  <Check size={12} className="absolute bottom-1 right-1 opacity-50" />
+{/* ✅ Checkmark on ALL hit tiles (including center) */}
+{sq.hit && (
+  <Check
+    size={12}
+    className="absolute bottom-1 right-1 text-white/90 drop-shadow-sm"
+  />
 )}
+
 {mode === 'edit' && !isFree && (
   <Edit3 size={10} className="absolute top-1 right-1 text-amber-500" />
 )}
@@ -1966,11 +1971,19 @@ const SharePreview = ({ onClose, isPro }) => {
                     }`}
                   >
                     {showCrown && (
-                      <Crown
-                        size={7}
-                        className="absolute top-[1px] left-[1px] text-white/80"
-                      />
-                    )}
+  <Crown
+    size={7}
+    className="absolute top-[1px] left-[1px] text-yellow-300 drop-shadow-sm"
+  />
+)}
+
+{sq.hit && (
+  <Check
+    size={6}
+    className="absolute bottom-[1px] right-[1px] text-white/90"
+  />
+)}
+
                     <span className="text-[5px] font-bold leading-none overflow-hidden select-none">
                       {sq.text.slice(0, 8)}..
                     </span>
