@@ -337,6 +337,41 @@ export default function BingoApp() {
   const [mode, setMode] = useState('play'); // 'play' vs 'edit'
   const [adminState, setAdminState] = useState(null);
   const [isPro, setIsPro] = useState(false);
+  // ===== PRO (PLUS) STATUS: load globally so it works on ALL screens =====
+const refreshProStatus = useCallback(async () => {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const uid = data?.session?.user?.id;
+
+    // ✅ supports both logged-in users AND anonymous device users
+    let q = supabase.from("profiles").select("is_pro");
+    if (uid) q = q.eq("id", uid);
+    else q = q.eq("device_id", getDeviceId());
+
+    const { data: prof, error } = await q.maybeSingle();
+    if (error) {
+      console.warn("Pro check failed:", error);
+      setIsPro(false);
+      return;
+    }
+    setIsPro(!!prof?.is_pro);
+  } catch (e) {
+    console.warn("Pro check failed:", e);
+    setIsPro(false);
+  }
+}, []);
+
+useEffect(() => {
+  refreshProStatus();
+
+  // refresh if auth changes (login/logout)
+  const { data: auth } = supabase.auth.onAuthStateChange(() => {
+    refreshProStatus();
+  });
+
+  return () => auth?.subscription?.unsubscribe?.();
+}, [refreshProStatus]);
+
   const [aiPolicy, setAiPolicy] = useState({
   enabled: true,
   monthlyCredits: 5,
@@ -1220,7 +1255,8 @@ const newBoard = myBoard.map(s =>
       }
   };
 
-  const consumeAiCredit = () => {
+const consumeAiCredit = () => {
+  // master kill-switch (even Plus can’t use AI if admin disables it)
   if (!aiPolicy.enabled) {
     openConfirm(
       "🔒 AI is currently disabled by Doomgo admin.\n\nYou can still play without AI.",
@@ -1229,8 +1265,11 @@ const newBoard = myBoard.map(s =>
     return false;
   }
 
+  // ✅ Doomgo Plus = unlimited AI (no decrement, no limits)
+  if (isPro) return true;
+
   if (aiCredits > 0) {
-    setAiCredits(prev => prev - 1);
+    setAiCredits((prev) => prev - 1);
     return true;
   }
 
@@ -1257,10 +1296,10 @@ const newBoard = myBoard.map(s =>
     return;
   }
 
-  if (aiCredits <= 0) {
-  showOutOfCredits();
-  return;
-}
+ if (!isPro && aiCredits <= 0) {
+    showOutOfCredits();
+    return;
+  }
 
 
   const targetType = activeBoardType === 'yearly'
@@ -1268,14 +1307,12 @@ const newBoard = myBoard.map(s =>
     : activeBoardType;
 
   openConfirm(
-    `Quick Refresh: Regenerate this board (${targetType})? Cost: 1 Credit.`,
+    `Quick Refresh: Regenerate this board (${targetType})? ${isPro ? "Cost: FREE (Plus)" : "Cost: 1 Credit."}`,
     async () => {
-      if (consumeAiCredit()) {
-        setIsRefreshing(true);
-        saveToHistory();
-        await generateDeck(targetType, true);
-        setIsRefreshing(false);
-      }
+      setIsRefreshing(true);
+      saveToHistory();
+      await generateDeck(targetType, true); // ✅ generateDeck charges now
+      setIsRefreshing(false);
     }
   );
 };
@@ -1299,9 +1336,14 @@ const applyChaosPolicyToItems = (items, type) => {
 
 
   // DECK GENERATION
-  const generateDeck = async (type, autoApply = false) => {
-      setIsGenerating(true);
-      let prompt = "Generate 25 unique events.";
+ const generateDeck = async (type, autoApply = false) => {
+  // ✅ Charge BEFORE calling Gemini (prevents infinite free previews)
+  // (Plus users pass automatically via consumeAiCredit)
+  if (!consumeAiCredit()) return;
+
+  setIsGenerating(true);
+
+  let prompt = "Generate 25 unique events.";
       if (type === 'daily') prompt = "Generate 25 funny, relatable, minor events that could happen TODAY (e.g., 'Spilled coffee'). Unique items.";
       if (type === 'weekly') prompt = "Generate 25 events for THIS WEEK (e.g., 'Finished a book', 'Went for a run'). Unique items.";
       if (type === 'monthly') prompt = "Generate 25 specific events or news headlines for NEXT MONTH. Unique items.";
@@ -1405,12 +1447,9 @@ if (autoApply) {
 };
 
 
-  const activatePreviewDeck = () => {
-  // 🔒 Only AI-generated decks cost credits
-  const costsCredit = previewType !== 'daily';
-
-  if (costsCredit && !consumeAiCredit()) return;
-
+const activatePreviewDeck = () => {
+  // ✅ No credit here anymore.
+  // Credits are charged when the preview is generated (generateDeck), which is when Gemini cost happens.
   saveToHistory();
 
   if (activeBoardType === 'yearly') {
@@ -1445,9 +1484,11 @@ setActiveTab('home');
 
 
   const askOracle = async (cardId, text) => {
-      setIsOracleLoading(true);
-      try {
-          const res = await callGemini(
+  if (!consumeAiCredit()) return;
+
+  setIsOracleLoading(true);
+  try {
+    const res = await callGemini(
   `Give a 1-sentence mystic prophecy about: "${text}". Be funny/sassy.`,
   buildAdminSystem("oracle") + "\nYou are a mystic Oracle."
 );
@@ -1481,11 +1522,13 @@ setActiveTab('home');
       }
   };
 
-  const generateHeadline = async (text) => {
-      setIsOracleLoading(true);
-      setNewsHeadline("");
-      try {
-          const res = await callGemini(
+const generateHeadline = async (text) => {
+  if (!consumeAiCredit()) return;
+
+  setIsOracleLoading(true);
+  setNewsHeadline("");
+  try {
+    const res = await callGemini(
   `Write a BREAKING NEWS ticker headline for: "${text}". Use ALL CAPS. Max 10 words.`,
   buildAdminSystem("headline")
 );
@@ -1604,8 +1647,9 @@ const importBackupFromFile = async (file) => {
 <p className="mt-4 text-[11px] text-gray-400 max-w-xs leading-snug">
   ✨ Includes{" "}
   <span className="font-bold">
-    {aiPolicy.monthlyCredits} free AI moments
-  </span>{" "}
+  {isPro ? "Unlimited AI (Plus)" : `${aiPolicy.monthlyCredits} free AI moments`}
+</span>
+{" "}
   to generate decks, roasts, and predictions.
 </p>
 
@@ -1804,7 +1848,10 @@ const showCrown = isFree || isWinningLine;
                  <div className="grid grid-cols-5 gap-2 mb-8 opacity-75 grayscale hover:grayscale-0 transition-all">
                     {previewDeck.map(sq => (<div key={sq.id} className={`aspect-square rounded-xl p-1 flex flex-col items-center justify-center text-center relative overflow-hidden bg-white shadow-sm border border-gray-100`}><p className="text-[8px] font-bold leading-tight line-clamp-3 select-none text-gray-600">{sq.text}</p>{sq.locked && <div className="absolute inset-0 flex items-center justify-center bg-gray-100/50"><Crown size={12} className="opacity-50"/></div>}</div>))}
                 </div>
-                <div className="space-y-3"><button onClick={activatePreviewDeck} className="w-full py-4 bg-[#1A1E2C] text-white rounded-2xl font-bold shadow-xl flex items-center justify-center gap-2 text-lg active:scale-95 transition-transform"><Play size={20} fill="currentColor"/> Start This Game</button><p className="text-center text-xs text-gray-400 px-4">Cost: 1 AI Credit ({aiCredits} remaining).</p></div>
+                <div className="space-y-3"><button onClick={activatePreviewDeck} className="w-full py-4 bg-[#1A1E2C] text-white rounded-2xl font-bold shadow-xl flex items-center justify-center gap-2 text-lg active:scale-95 transition-transform"><Play size={20} fill="currentColor"/> Start This Game</button><p className="text-center text-xs text-gray-400 px-4">
+  {isPro ? "Plus: Unlimited AI ✅" : `This deck cost 1 AI credit to generate. (${aiCredits} left)`}
+</p>
+</div>
             </div>
         )
     }
@@ -1818,7 +1865,7 @@ const showCrown = isFree || isWinningLine;
               <SoftCard onClick={() => generateDeck('chaos')} className="!bg-[#1A1E2C] text-white cursor-pointer active:scale-95"><div className="flex items-center justify-between"><div><h3 className="font-bold text-lg">Doomgo 2026</h3><p className="text-xs text-gray-400">Global events & absurdity.</p></div><Globe size={24} className="opacity-80"/></div></SoftCard>
           </div>
           <p className="text-center text-xs font-bold text-gray-400 mt-6">
-  AI Credits Remaining: {aiCredits}/{aiPolicy.monthlyCredits}
+  AI Credits Remaining: {isPro ? "∞ Unlimited (Plus)" : `${aiCredits}/${aiPolicy.monthlyCredits}`}
   <br />
   <span className="font-normal text-[10px]">
     Used for AI decks, roasts & oracle
@@ -1928,6 +1975,8 @@ const SharePreview = ({ onClose, isPro }) => {
   }, [exportUrl]);
 
   const genCaption = async () => {
+  if (!consumeAiCredit()) return;
+
     setLoadingCaption(true);
 
     const hitCount = myBoard.filter((s) => s.hit).length;
@@ -2280,27 +2329,6 @@ const RoastModal = () => {
 
   function DoomgoPlusCard() {
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const run = async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        const uid = data?.session?.user?.id;
-
-        // ✅ supports both logged-in users AND anonymous device users
-        let q = supabase.from("profiles").select("is_pro");
-        if (uid) q = q.eq("id", uid);
-        else q = q.eq("device_id", getDeviceId());
-
-        const { data: prof } = await q.maybeSingle();
-        setIsPro(!!prof?.is_pro);
-      } catch (e) {
-        console.warn("Pro check failed:", e);
-        setIsPro(false);
-      }
-    };
-    run();
-  }, []);
 
   if (isPro) {
     return (
