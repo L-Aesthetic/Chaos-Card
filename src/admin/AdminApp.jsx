@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Shield, Database, Zap, Lock, Unlock, 
   AlertTriangle, Eye, EyeOff, Save, 
@@ -1539,57 +1539,36 @@ const generateCanonWithAI = async () => {
  * 3️⃣ CHAOS & PROBABILITY LOGIC (PERSISTED)
  * Saves to adminState.data.chaosPolicy
  */
-const ChaosLogicView = ({ adminState, setAdminState }) => {
+const ChaosLogicView = ({ draftAdmin, setDraftAdmin, setDirty, saveChaosDraft, savingGlobal }) => {
   const defaults = { globalMultiplier: 1.0, absurdityBias: 50 };
+  const cp = draftAdmin?.chaosPolicy || defaults;
 
-  // hydrate from adminState (Supabase) if present
-  const [globalMultiplier, setGlobalMultiplier] = useState(
-    typeof adminState?.chaosPolicy?.globalMultiplier === "number"
-      ? adminState.chaosPolicy.globalMultiplier
-      : defaults.globalMultiplier
-  );
+  const setMultiplier = (v) => {
+    setDirty(true);
+    setDraftAdmin((s) => ({
+      ...(s || {}),
+      chaosPolicy: { ...(s?.chaosPolicy || defaults), globalMultiplier: Number(v) },
+    }));
+  };
 
-  const [absurdityBias, setAbsurdityBias] = useState(
-    typeof adminState?.chaosPolicy?.absurdityBias === "number"
-      ? adminState.chaosPolicy.absurdityBias
-      : defaults.absurdityBias
-  );
-
-  // if adminState changes (poll), re-hydrate the sliders
-  useEffect(() => {
-    if (!adminState) return;
-    const cp = adminState.chaosPolicy || defaults;
-
-    setGlobalMultiplier(
-      typeof cp.globalMultiplier === "number" ? cp.globalMultiplier : defaults.globalMultiplier
-    );
-    setAbsurdityBias(
-      typeof cp.absurdityBias === "number" ? cp.absurdityBias : defaults.absurdityBias
-    );
-  }, [adminState]);
-
-  const saveChaosPolicy = async () => {
-    const next = {
-      ...adminState,
-      chaosPolicy: {
-        globalMultiplier: Number(globalMultiplier),
-        absurdityBias: Number(absurdityBias),
-      },
-    };
-
-    // IMPORTANT: setAdminState here is your persistAdminState (writes to Supabase)
-await setAdminState({
-   chaosPolicy: {
-     globalMultiplier: Number(globalMultiplier),
-     absurdityBias: Number(absurdityBias),
-   },
- });
+  const setBias = (v) => {
+    setDirty(true);
+    setDraftAdmin((s) => ({
+      ...(s || {}),
+      chaosPolicy: { ...(s?.chaosPolicy || defaults), absurdityBias: Number(v) },
+    }));
   };
 
   const resetChaosPolicy = () => {
-    setGlobalMultiplier(defaults.globalMultiplier);
-    setAbsurdityBias(defaults.absurdityBias);
+    setDirty(true);
+    setDraftAdmin((s) => ({
+      ...(s || {}),
+      chaosPolicy: defaults,
+    }));
   };
+
+  const mult = Number(cp.globalMultiplier ?? 1.0);
+  const bias = Number(cp.absurdityBias ?? 50);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1598,15 +1577,15 @@ await setAdminState({
           <div>
             <div className="flex justify-between mb-2">
               <label className="text-sm font-bold text-slate-700">Global Chaos Multiplier</label>
-              <span className="text-[#FF67D2] font-mono font-black">{Number(globalMultiplier).toFixed(1)}x</span>
+              <span className="text-[#FF67D2] font-mono font-black">{mult.toFixed(1)}x</span>
             </div>
             <input
               type="range"
               min="0.5"
               max="2.0"
               step="0.1"
-              value={globalMultiplier}
-              onChange={(e) => setGlobalMultiplier(parseFloat(e.target.value))}
+              value={mult}
+              onChange={(e) => setMultiplier(e.target.value)}
               className="w-full h-3 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-[#FF67D2]"
             />
             <p className="text-xs text-slate-500 mt-2">
@@ -1617,14 +1596,15 @@ await setAdminState({
           <div>
             <div className="flex justify-between mb-2">
               <label className="text-sm font-bold text-slate-700">Absurdity Bias</label>
-              <span className="text-[#6A4DFF] font-mono font-black">{absurdityBias}%</span>
+              <span className="text-[#6A4DFF] font-mono font-black">{bias}%</span>
             </div>
             <input
               type="range"
               min="0"
               max="100"
-              value={absurdityBias}
-              onChange={(e) => setAbsurdityBias(parseInt(e.target.value))}
+              step="1"
+              value={bias}
+              onChange={(e) => setBias(e.target.value)}
               className="w-full h-3 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-[#6A4DFF]"
             />
             <p className="text-xs text-slate-500 mt-2">
@@ -1635,10 +1615,13 @@ await setAdminState({
           {/* ✅ SAVE ROW */}
           <div className="flex gap-2 pt-2">
             <button
-              onClick={saveChaosPolicy}
-              className="flex-1 bg-[#FF67D2] text-white font-bold py-3 rounded-xl hover:bg-[#ff4fc5]"
+              onClick={saveChaosDraft}
+              disabled={savingGlobal}
+              className={`flex-1 text-white font-bold py-3 rounded-xl ${
+                savingGlobal ? "bg-slate-300 cursor-not-allowed" : "bg-[#FF67D2] hover:bg-[#ff4fc5]"
+              }`}
             >
-              Save Chaos Logic
+              {savingGlobal ? "Saving…" : "Save Chaos Logic"}
             </button>
             <button
               onClick={resetChaosPolicy}
@@ -1656,14 +1639,14 @@ await setAdminState({
 
       <Card title={<><Terminal size={20} className="text-slate-600"/> Simulation Preview</>}>
         <div className="bg-slate-900 rounded-xl p-4 font-mono text-xs text-slate-300 h-64 overflow-y-auto">
-          <p className="text-[#6A4DFF]">$ init_simulation --multiplier={Number(globalMultiplier).toFixed(1)} --bias={absurdityBias}</p>
+          <p className="text-[#6A4DFF]">$ init_simulation --multiplier={mult.toFixed(1)} --bias={bias}</p>
           <p className="mt-2 text-slate-500">... Loading Probability Matrix ...</p>
           <p className="mt-2">Event: "Aliens Land"</p>
           <p className="ml-4 text-slate-400">Base Weight: 85</p>
-          <p className="ml-4 text-[#FF67D2]">Adjusted Weight: {Math.min(100, Math.floor(85 * Number(globalMultiplier)))}</p>
+          <p className="ml-4 text-[#FF67D2]">Adjusted Weight: {Math.min(100, Math.floor(85 * mult))}</p>
           <p className="mt-2">Event: "Coffee Extinct"</p>
           <p className="ml-4 text-slate-400">Base Weight: 40</p>
-          <p className="ml-4 text-[#FF67D2]">Adjusted Weight: {Math.min(100, Math.floor(40 * Number(globalMultiplier)))}</p>
+          <p className="ml-4 text-[#FF67D2]">Adjusted Weight: {Math.min(100, Math.floor(40 * mult))}</p>
           <div className="mt-4 border-t border-slate-700 pt-2">
             <span className="text-emerald-400">STATUS: READY TO DEPLOY</span>
           </div>
@@ -1672,6 +1655,7 @@ await setAdminState({
     </div>
   );
 };
+
 
 
 /**
@@ -1984,6 +1968,12 @@ const Sidebar = ({ active, setView, mobileOpen, setMobileOpen }) => {
 
 export default function DoomgoAdmin() {
   const [adminState, setAdminState] = useState(null);
+const [draftAdmin, setDraftAdmin] = useState(null);     // what the UI edits
+const [dirty, setDirty] = useState(false);
+const dirtyRef = useRef(false);
+const [savingGlobal, setSavingGlobal] = useState(false);
+
+useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
 
   // (Optional but prevents crashes if referenced elsewhere)
   const [aiPolicy, setAiPolicy] = useState(null);
@@ -2019,6 +2009,48 @@ const patchAdminState = async (patch) => {
 
 // keep the same prop name your views already use
 const persistAdminState = patchAdminState;
+
+// ✅ Save ONLY the chaos knobs (safe; won’t touch canonDeck)
+const saveChaosDraft = async () => {
+  if (!draftAdmin?.chaosPolicy) return;
+
+  setSavingGlobal(true);
+  try {
+    const next = await persistAdminState({
+      chaosPolicy: {
+        globalMultiplier: Number(draftAdmin.chaosPolicy.globalMultiplier ?? 1.0),
+        absurdityBias: Number(draftAdmin.chaosPolicy.absurdityBias ?? 50),
+      },
+    });
+
+    // keep draft aligned to server truth after save
+    setDraftAdmin(next);
+    setDirty(false);
+  } catch (e) {
+    console.error("saveChaosDraft failed:", e);
+  } finally {
+    setSavingGlobal(false);
+  }
+};
+
+// 🔥 Debounce autosave when chaos knobs change
+useEffect(() => {
+  if (!dirty) return;
+  // optional: only autosave while you’re on the chaos view
+  if (view !== "chaos") return;
+
+  const t = setTimeout(() => {
+    saveChaosDraft();
+  }, 700);
+
+  return () => clearTimeout(t);
+}, [
+  dirty,
+  view,
+  draftAdmin?.chaosPolicy?.absurdityBias,
+  draftAdmin?.chaosPolicy?.globalMultiplier,
+]);
+
 
 
 const [session, setSession] = useState(null);
@@ -2119,16 +2151,18 @@ useEffect(() => {
   return;
 }
 
-
-    if (data?.data) {
+if (data?.data) {
   setAdminState(data.data);
+
+  // ✅ only overwrite the draft if the user is NOT currently editing
+  setDraftAdmin((prev) => (dirtyRef.current && prev ? prev : data.data));
+  if (!dirtyRef.current) setDirty(false);
 
   if (data.data.aiPolicy) {
     setAiPolicy(data.data.aiPolicy);
     setAiCredits(data.data.aiPolicy.monthlyCredits);
   }
 }
-
 
     setLoading(false);
   };
@@ -2259,8 +2293,11 @@ if (loading || !adminState) {
 
 {view === 'chaos' && (
   <ChaosLogicView
-    adminState={adminState}
-    setAdminState={persistAdminState}
+    draftAdmin={draftAdmin || adminState}
+    setDraftAdmin={setDraftAdmin}
+    setDirty={setDirty}
+    saveChaosDraft={saveChaosDraft}
+    savingGlobal={savingGlobal}
   />
 )}
 

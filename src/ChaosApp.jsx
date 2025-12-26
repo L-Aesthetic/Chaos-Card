@@ -346,6 +346,49 @@ const [chaosPolicy, setChaosPolicy] = useState({
   absurdityBias: 50,
 });
 
+// ===== ADMIN POLICY SYNC HELPERS =====
+
+// Admin can force-reset credits anytime by changing aiPolicy.cycleKey (string/number)
+const getAiBucketKey = (policy) => {
+  if (policy?.cycleKey) return String(policy.cycleKey);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; // monthly bucket
+};
+
+const syncAiCreditsWithPolicy = React.useCallback((policy) => {
+  if (!policy) return;
+  const cap = Math.max(0, Number(policy.monthlyCredits ?? 0));
+  const bucket = getAiBucketKey(policy);
+  const prevBucket = localStorage.getItem("doomgo_ai_bucket");
+
+  // New month (or admin changed cycleKey) => refill to cap
+  if (prevBucket !== bucket) {
+    localStorage.setItem("doomgo_ai_bucket", bucket);
+    setAiCredits(cap);
+    return;
+  }
+
+  // Same bucket => never exceed admin cap
+  setAiCredits((prev) => Math.min(Number(prev ?? 0), cap));
+}, []);
+
+const buildAdminSystem = React.useCallback((purpose = "") => {
+  const bias = Number(chaosPolicy?.absurdityBias ?? 50);
+  const mult = Number(chaosPolicy?.globalMultiplier ?? 1);
+
+  // optional: let admin add custom AI tone in adminState.messaging.aiSystem
+  const extra = messaging?.aiSystem ? String(messaging.aiSystem) : "";
+
+  return [
+    "You are Doomgo's AI.",
+    `absurdityBias=${bias}%`,
+    `confidenceMultiplier=${mult}`,
+    extra,
+    purpose ? `task=${purpose}` : "",
+  ].filter(Boolean).join("\n");
+}, [chaosPolicy, messaging]);
+
+
 // --- FEEDBACK (DISABLED FOR NOW) ---
 const vibrate = () => {};   // keeps your existing vibrate(...) calls from crashing
 const feedback = () => {};  // keeps your existing feedback(...) calls from crashing
@@ -601,77 +644,112 @@ setIsBoardLocked(hardLocked);
 }, [adminState]);
 useEffect(() => localStorage.setItem('bingo_history', JSON.stringify(boardHistory)), [boardHistory]);
 useEffect(() => {
-  const loadAdminState = async () => {
+  let alive = true;
+
+  const applyAdmin = (next, { initial = false } = {}) => {
+    if (!next) return;
+
+    setAdminState(next);
+
+    // messaging
+    const bundle = next.messaging || null;
+    setMessaging(bundle);
+
+    // announcement (same logic as you had, but using "bundle")
+    if (bundle?.globalMessage) {
+      const txt = bundle.globalMessage.trim();
+      if (txt.length) {
+        const id = bundle.announcementId || bundle.updatedAt || "global";
+        setAnnouncement({ id, message: txt });
+      } else {
+        setAnnouncement(null);
+      }
+    } else {
+      setAnnouncement(null);
+    }
+
+    // disclaimer: only on initial load (don’t pop mid-session)
+    if (initial) {
+      const shouldShow = !!bundle?.showDisclaimerOnLoad;
+      const disclaimerText = bundle?.globalDisclaimer;
+      const dismissed = localStorage.getItem("doomgo_disclaimer_dismissed") === "true";
+      if (shouldShow && disclaimerText && !dismissed) {
+        setShowDisclaimerModal(true);
+      }
+    }
+
+    // ✅ AI policy (NO MORE “refresh refills credits”)
+    if (next.aiPolicy) {
+      setAiPolicy(next.aiPolicy);
+      syncAiCreditsWithPolicy(next.aiPolicy);
+    }
+
+    // ✅ chaos policy
+    if (next.chaosPolicy) {
+      setChaosPolicy({
+        globalMultiplier:
+          typeof next.chaosPolicy.globalMultiplier === "number"
+            ? next.chaosPolicy.globalMultiplier
+            : 1.0,
+        absurdityBias:
+          typeof next.chaosPolicy.absurdityBias === "number"
+            ? next.chaosPolicy.absurdityBias
+            : 50,
+      });
+    }
+  };
+
+  const loadOnce = async () => {
     setLoading(true);
 
     const { data, error } = await supabase
-      .from('doomgo_admin_state')
-      .select('data')
-      .eq('id', 'global')
+      .from("doomgo_admin_state")
+      .select("data")
+      .eq("id", "global")
       .single();
 
+    if (!alive) return;
+
     if (error) {
-      console.error('Failed to load admin state', error);
+      console.error("Failed to load admin state", error);
       setLoading(false);
       return;
     }
 
-    setAdminState(data.data);
-
-// ✅ hydrate messaging bundle (use the freshly loaded bundle below)
-const bundle = data.data?.messaging || null;
-setMessaging(bundle);
-
-// ✅ announcement wiring (uses bundle, not stale state)
-if (bundle?.globalMessage) {
-  const txt = bundle.globalMessage.trim();
-  if (txt.length) {
-    const id =
-      bundle.announcementId ||
-      bundle.updatedAt ||
-      "global";
-    setAnnouncement({ id, message: txt });
-  } else {
-    setAnnouncement(null);
-  }
-} else {
-  setAnnouncement(null);
-}
-
-// ✅ disclaimer on load (once per device) — use bundle
-const shouldShow = !!bundle?.showDisclaimerOnLoad;
-const disclaimerText = bundle?.globalDisclaimer;
-const dismissed = localStorage.getItem("doomgo_disclaimer_dismissed") === "true";
-
-if (shouldShow && disclaimerText && !dismissed) {
-  setShowDisclaimerModal(true);
-}
-
-
-if (data.data?.aiPolicy) {
-  setAiPolicy(data.data.aiPolicy);
-  // FORCE ADMIN CREDIT COUNT ON LOAD
-  setAiCredits(data.data.aiPolicy.monthlyCredits);
-}
-
-if (data.data?.chaosPolicy) {
-  setChaosPolicy({
-    globalMultiplier:
-      typeof data.data.chaosPolicy.globalMultiplier === "number"
-        ? data.data.chaosPolicy.globalMultiplier
-        : 1.0,
-    absurdityBias:
-      typeof data.data.chaosPolicy.absurdityBias === "number"
-        ? data.data.chaosPolicy.absurdityBias
-        : 50,
-  });
-}
-
-setLoading(false);
+    applyAdmin(data?.data, { initial: true });
+    setLoading(false);
   };
 
-  loadAdminState();
-}, []);
+  loadOnce();
+
+  // ✅ LIVE PUSH: admin knob changes apply without user reload
+  const ch = supabase
+    .channel("doomgo_admin_state_global")
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "doomgo_admin_state",
+        filter: "id=eq.global",
+      },
+      (payload) => {
+        const next = payload?.new?.data;
+        if (next) applyAdmin(next, { initial: false });
+      }
+    )
+    .subscribe();
+
+  return () => {
+    alive = false;
+    try {
+      supabase.removeChannel(ch);
+    } catch {
+      ch.unsubscribe?.();
+    }
+  };
+}, [syncAiCreditsWithPolicy]);
+
 
 // --- PRESENCE: create/update anonymous profile so Admin dashboard sees users ---
 useEffect(() => {
@@ -1236,8 +1314,10 @@ const applyChaosPolicyToItems = (items, type) => {
 
       try {
           const res = await callGemini(
-  prompt + ` Return ONLY a JSON array of exactly 25 objects with this shape: { "text": string, "category": string, "confidence": a number from 1 to 100 }. The item at index 12 must be text: "FREE SPACE". No markdown, no extra text.`
+  prompt + ` Return ONLY a JSON array of exactly 25 objects with this shape: { "text": string, "category": string, "confidence": a number from 1 to 100 }. The item at index 12 must be text: "FREE SPACE". No markdown, no extra text.`,
+  buildAdminSystem("deck_generation")
 );
+
           const clean = res.replace(/```json|```/g, '').trim();
           let data = JSON.parse(clean);
 
@@ -1365,7 +1445,11 @@ setActiveTab('home');
   const askOracle = async (cardId, text) => {
       setIsOracleLoading(true);
       try {
-          const res = await callGemini(`Give a 1-sentence mystic prophecy about: "${text}". Be funny/sassy.`, "You are a mystic Oracle.");
+          const res = await callGemini(
+  `Give a 1-sentence mystic prophecy about: "${text}". Be funny/sassy.`,
+  buildAdminSystem("oracle") + "\nYou are a mystic Oracle."
+);
+
           setMyBoard(prev => prev.map(sq => sq.id === cardId ? { ...sq, oracleText: res } : sq));
           if(appSettings.haptics) vibrate(10);
       } catch(e) { 
@@ -1383,7 +1467,7 @@ setActiveTab('home');
       
       try {
           const prompt = `You are a chaotic, snarky Bingo announcer. The user has achieved: ${hits || "Nothing"}. Waiting on: ${misses}. Roast their Doomgo card so far.`;
-          const res = await callGemini(prompt);
+          const res = await callGemini(prompt, buildAdminSystem("roast"));
           setRoastData(res);
           setShowRoast(true);
       } catch(e) {
@@ -1399,7 +1483,11 @@ setActiveTab('home');
       setIsOracleLoading(true);
       setNewsHeadline("");
       try {
-          const res = await callGemini(`Write a BREAKING NEWS ticker headline for: "${text}". Use ALL CAPS. Max 10 words.`);
+          const res = await callGemini(
+  `Write a BREAKING NEWS ticker headline for: "${text}". Use ALL CAPS. Max 10 words.`,
+  buildAdminSystem("headline")
+);
+
           setNewsHeadline(res.replace(/"/g, ''));
           if(appSettings.haptics) vibrate(10);
       } catch(e) {}
@@ -1849,10 +1937,10 @@ const SharePreview = ({ onClose, isPro }) => {
 
     try {
       const res = await callGemini(
-        `Write a short, funny Instagram caption for my 2026 Bingo card. I have completed ${hitCount}/25 events. Highlights: ${
-          hits || "None yet"
-        }. Include hashtags.`
-      );
+  `Write a short, funny Instagram caption for my 2026 Bingo card...`,
+  buildAdminSystem("caption")
+);
+
       setCaption(res.replace(/"/g, ""));
     } catch (e) {
       console.warn("Caption gen failed:", e);
