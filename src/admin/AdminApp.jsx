@@ -1972,7 +1972,9 @@ const [draftAdmin, setDraftAdmin] = useState(null);     // what the UI edits
 const [dirty, setDirty] = useState(false);
 const dirtyRef = useRef(false);
 const [savingGlobal, setSavingGlobal] = useState(false);
-
+  const [view, setView] = useState('dashboard');
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [toast, setToast] = useState(null);
 useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
 
   // (Optional but prevents crashes if referenced elsewhere)
@@ -2079,10 +2081,6 @@ const unfreezeSystem = async () => {
   };
   await persistAdminState({ status: "Open" });
 };
-
-  const [view, setView] = useState('dashboard');
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [toast, setToast] = useState(null);
 
   // ✅ GLOBAL ADMIN STATE (SOURCE OF TRUTH)
 const [loading, setLoading] = useState(true);

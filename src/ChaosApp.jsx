@@ -372,22 +372,6 @@ const syncAiCreditsWithPolicy = React.useCallback((policy) => {
   setAiCredits((prev) => Math.min(Number(prev ?? 0), cap));
 }, []);
 
-const buildAdminSystem = React.useCallback((purpose = "") => {
-  const bias = Number(chaosPolicy?.absurdityBias ?? 50);
-  const mult = Number(chaosPolicy?.globalMultiplier ?? 1);
-
-  // optional: let admin add custom AI tone in adminState.messaging.aiSystem
-  const extra = messaging?.aiSystem ? String(messaging.aiSystem) : "";
-
-  return [
-    "You are Doomgo's AI.",
-    `absurdityBias=${bias}%`,
-    `confidenceMultiplier=${mult}`,
-    extra,
-    purpose ? `task=${purpose}` : "",
-  ].filter(Boolean).join("\n");
-}, [chaosPolicy, messaging]);
-
 
 // --- FEEDBACK (DISABLED FOR NOW) ---
 const vibrate = () => {};   // keeps your existing vibrate(...) calls from crashing
@@ -495,6 +479,24 @@ const [dismissedAnnouncementId, setDismissedAnnouncementId] = useState(() => {
 
   const [coreBoard, setCoreBoard] = useState(INITIAL_BOARD);
   const [messaging, setMessaging] = useState(null);
+
+  const buildAdminSystem = React.useCallback((purpose = "") => {
+  const bias = Number(chaosPolicy?.absurdityBias ?? 50);
+  const mult = Number(chaosPolicy?.globalMultiplier ?? 1);
+
+  // optional: let admin add custom AI tone in adminState.messaging.aiSystem
+  const extra = messaging?.aiSystem ? String(messaging.aiSystem) : "";
+
+  return [
+    "You are Doomgo's AI.",
+    `absurdityBias=${bias}%`,
+    `confidenceMultiplier=${mult}`,
+    extra,
+    purpose ? `task=${purpose}` : "",
+  ].filter(Boolean).join("\n");
+}, [chaosPolicy, messaging]);
+
+
 const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
 
 // ✅ helper for messaging strings
