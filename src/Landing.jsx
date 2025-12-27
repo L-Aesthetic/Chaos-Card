@@ -67,25 +67,101 @@ const FAQItem = ({ question, answer }) => {
 };
 
 const MockPhone = () => (
-  <div className="relative mx-auto w-64 h-[500px] bg-[#1A1E2C] rounded-[40px] border-[8px] border-[#1A1E2C] shadow-2xl overflow-hidden z-10 transform rotate-[-2deg] hover:rotate-0 transition-transform duration-500">
-     {/* Screen Content */}
-     <div className="w-full h-full bg-[#F5F7FA] relative flex flex-col">
-        <div className="h-24 bg-gradient-to-b from-indigo-50 to-transparent p-4 pt-8">
-            <div className="w-8 h-8 rounded-full bg-white shadow-sm mb-2"></div>
-            <div className="w-24 h-4 bg-gray-200 rounded-full mb-1"></div>
-            <div className="w-16 h-2 bg-gray-100 rounded-full"></div>
+  <div className="relative mx-auto w-64 h-[520px] bg-[#0F1322] rounded-[44px] border-[10px] border-[#0F1322] shadow-2xl overflow-hidden z-10 transform rotate-[-2deg] hover:rotate-0 transition-transform duration-500">
+    {/* Notch */}
+    <div className="absolute top-3 left-1/2 -translate-x-1/2 w-24 h-6 bg-[#0F1322] rounded-full z-20 shadow-md" />
+
+    {/* Screen */}
+    <div className="w-full h-full bg-[#F5F7FA] relative flex flex-col">
+      {/* Status bar */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-2 text-[10px] font-bold text-slate-500">
+        <span>9:41</span>
+        <div className="flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+          <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+          <span className="w-6 h-3 rounded-md border border-slate-300 relative overflow-hidden">
+            <span className="absolute inset-y-0 left-0 w-4 bg-slate-300" />
+          </span>
         </div>
-        <div className="p-4 grid grid-cols-5 gap-1.5 flex-1 content-start">
-             {Array(25).fill(0).map((_,i) => (
-                 <div key={i} className={`aspect-square rounded-md ${i===12 || i===3 || i===7 ? 'bg-indigo-500' : 'bg-white shadow-sm'}`}></div>
-             ))}
+      </div>
+
+      {/* App header */}
+      <div className="px-4 pb-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center overflow-hidden">
+            <img src="/chaos-icon.png" alt="Doomgo" className="w-7 h-7" />
+          </div>
+          <div className="flex flex-col">
+            <div className="text-sm font-black text-[#1A1E2C] leading-none">Doomgo</div>
+            <div className="text-[11px] font-bold text-slate-500">2026 Chaos Deck</div>
+          </div>
+          <div className="ml-auto text-[10px] font-black px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">
+            LIVE
+          </div>
         </div>
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-32 h-10 bg-[#1A1E2C] rounded-full shadow-xl"></div>
-     </div>
-     {/* Shine */}
-     <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-bl from-white/10 to-transparent pointer-events-none"></div>
+
+        {/* Chips */}
+        <div className="mt-3 flex gap-2">
+          {["Daily", "Weekly", "Monthly"].map((t) => (
+            <div
+              key={t}
+              className="text-[10px] font-black px-3 py-1 rounded-full bg-white border border-slate-100 shadow-sm text-slate-600"
+            >
+              {t}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Board */}
+      <div className="px-4 pb-4 flex-1">
+        <div className="grid grid-cols-5 gap-1.5 content-start">
+          {Array(25).fill(0).map((_, i) => {
+            const isHot = i === 12 || i === 3 || i === 7;
+            const label =
+              i === 12 ? "FREE" :
+              i === 3 ? "ALIENS" :
+              i === 7 ? "CRASH" :
+              null;
+
+            return (
+              <div
+                key={i}
+                className={`aspect-square rounded-md flex items-center justify-center text-[8px] font-black tracking-tight
+                  ${isHot ? "bg-indigo-500 text-white shadow-md" : "bg-white text-slate-400 border border-slate-100 shadow-sm"}
+                `}
+              >
+                {label}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Mini stats row */}
+        <div className="mt-4 flex items-center justify-between text-[10px] font-bold text-slate-500">
+          <span>Chaos Score</span>
+          <span className="text-indigo-600 font-black">72</span>
+        </div>
+        <div className="mt-1 h-2 rounded-full bg-slate-200 overflow-hidden">
+          <div className="h-full w-2/3 bg-indigo-500 rounded-full" />
+        </div>
+      </div>
+
+      {/* Bottom nav */}
+      <div className="px-5 pb-6">
+        <div className="h-12 bg-[#1A1E2C] rounded-full shadow-xl flex items-center justify-around">
+          <span className="w-2 h-2 rounded-full bg-white/80" />
+          <span className="w-8 h-2 rounded-full bg-white/30" />
+          <span className="w-2 h-2 rounded-full bg-white/50" />
+        </div>
+      </div>
+    </div>
+
+    {/* Shine */}
+    <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-bl from-white/10 to-transparent pointer-events-none"></div>
   </div>
 );
+
 
 // --- MAIN PAGE ---
 
@@ -104,10 +180,19 @@ export default function LandingPage({ onLaunchApp }) {
          
          <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
             <div className="text-center lg:text-left z-10">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-indigo-100 shadow-sm mb-6">
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">2026 Edition Live</span>
-                </div>
+  {/* Logo */}
+  <div className="flex justify-center lg:justify-start mb-4">
+    <img
+      src="/chaos-icon.png"
+      alt="Doomgo"
+      className="w-14 h-14 rounded-2xl shadow-lg border border-white"
+    />
+  </div>
+
+  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-indigo-100 shadow-sm mb-6">
+    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+    <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">2026 Edition Live</span>
+  </div>
                 <h1 className="text-5xl lg:text-7xl font-black leading-[0.95] tracking-tighter mb-6">
                     Predict Your<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">Year.</span>
                 </h1>
@@ -266,13 +351,6 @@ export default function LandingPage({ onLaunchApp }) {
           <Play size={20} fill="currentColor" />
           Open the App
         </button>
-
-        <a
-          href="/privacy.html"
-          className="px-8 py-4 bg-white/10 text-white rounded-2xl font-bold text-lg border border-white/15 hover:bg-white/15 transition-all inline-flex items-center justify-center"
-        >
-          Privacy
-        </a>
       </div>
 
       <div className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-bold text-white/60">
