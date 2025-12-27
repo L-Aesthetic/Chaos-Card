@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from "react-router-dom";
 
 import { 
-  ArrowRight, Check, Star, Shield, 
-  HelpCircle, ChevronDown, ChevronUp, Mail, 
-  Play, Smartphone, TrendingUp, Users,
+  Check, Star, ChevronDown, ChevronUp,
+  Play, TrendingUp, Users, User,
   Shuffle, Share2
 } from 'lucide-react';
+
 
 /**
  * DOOMGO LANDING PAGE
@@ -93,16 +93,6 @@ export default function LandingPage({ onLaunchApp }) {
   const navigate = useNavigate();
   const launch = onLaunchApp ?? (() => navigate("/"));
 
-  const [email, setEmail] = useState("");
-  const [signedUp, setSignedUp] = useState(false);
-
-
-  const handleSignup = (e) => {
-    e.preventDefault();
-    // 💡 Add Pixel Event Here: fbq('track', 'Lead');
-    setSignedUp(true);
-  };
-
   return (
     <div className="min-h-screen bg-[#F5F7FA] font-sans text-[#1A1E2C] overflow-x-hidden selection:bg-indigo-100">
       
@@ -136,10 +126,23 @@ export default function LandingPage({ onLaunchApp }) {
                     <div className="hidden sm:block w-px h-12 bg-gray-200 self-center"></div>
                     <div className="flex items-center gap-[-10px]">
                          <div className="flex -space-x-3">
-                             {[1,2,3].map(i => <div key={i} className="w-10 h-10 rounded-full border-2 border-white bg-gray-200"></div>)}
-                         </div>
+  {[
+    { icon: <User size={16} />, cls: "bg-indigo-100 text-indigo-600" },
+    { icon: <Users size={16} />, cls: "bg-purple-100 text-purple-600" },
+    { icon: <TrendingUp size={16} />, cls: "bg-emerald-100 text-emerald-600" },
+  ].map((a, i) => (
+    <div
+      key={i}
+      className={`w-10 h-10 rounded-full border-2 border-white ${a.cls} flex items-center justify-center shadow-sm`}
+      aria-hidden="true"
+    >
+      {a.icon}
+    </div>
+  ))}
+</div>
+
                          <div className="ml-4 text-left">
-                             <p className="text-xs font-bold">12k+ Players</p>
+                             <p className="text-xs font-bold">2k+ Players</p>
                              <div className="flex text-yellow-400 text-[10px]">★★★★★</div>
                          </div>
                     </div>
@@ -156,7 +159,7 @@ export default function LandingPage({ onLaunchApp }) {
                     <div className="flex items-center gap-2">
                         <span className="text-xl">👽</span>
                         <div className="text-left">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase">Hit Confirmed</p>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase">Highest voted probable</p>
                             <p className="text-xs font-bold">Aliens Land</p>
                         </div>
                     </div>
@@ -165,7 +168,7 @@ export default function LandingPage({ onLaunchApp }) {
                 <SoftCard className="absolute bottom-32 -right-6 !p-3 animate-bounce-slow" style={{animationDelay: '1s'}}>
                     <div className="flex items-center gap-2">
                          <div className="p-1.5 bg-green-100 rounded-full text-green-600"><TrendingUp size={14}/></div>
-                         <p className="text-xs font-bold">Bitcoin $200k</p>
+                         <p className="text-xs font-bold">Bitcoin Crash</p>
                     </div>
                 </SoftCard>
             </div>
@@ -202,7 +205,7 @@ export default function LandingPage({ onLaunchApp }) {
               <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
                   <h2 className="text-3xl font-black max-w-xs">Don't just watch 2026 happen. Predict it.</h2>
                   <div className="text-right hidden md:block">
-                      <p className="text-4xl font-black text-indigo-600">8,402</p>
+                      <p className="text-4xl font-black text-indigo-600">2,402</p>
                       <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Boards Created</p>
                   </div>
               </div>
@@ -210,17 +213,22 @@ export default function LandingPage({ onLaunchApp }) {
               <div className="grid md:grid-cols-2 gap-4">
                   <SoftCard className="!p-6">
                       <div className="flex gap-1 text-yellow-400 mb-3"><Star size={16} fill="currentColor"/><Star size={16} fill="currentColor"/><Star size={16} fill="currentColor"/><Star size={16} fill="currentColor"/><Star size={16} fill="currentColor"/></div>
-                      <p className="text-sm font-medium text-gray-700 mb-4">"I literally predicted the celebrity breakup last week. My friends are freaking out."</p>
+                      <p className="text-sm font-medium text-gray-700 mb-4">"I literally predicted the celebrity breakup last week. My friends are freaking out!!!"</p>
                       <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
-                          <span className="text-xs font-bold text-gray-400">@sarah_snaps</span>
+                          <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center">
+  <User size={14} />
+</div>
+                          <span className="text-xs font-bold text-gray-400">@sarah-snaps</span>
                       </div>
                   </SoftCard>
                   <SoftCard className="!p-6">
                       <div className="flex gap-1 text-yellow-400 mb-3"><Star size={16} fill="currentColor"/><Star size={16} fill="currentColor"/><Star size={16} fill="currentColor"/><Star size={16} fill="currentColor"/><Star size={16} fill="currentColor"/></div>
                       <p className="text-sm font-medium text-gray-700 mb-4">"The daily bingo is my new morning routine. Way better than scrolling news."</p>
                       <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+                          <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center">
+  <User size={14} />
+</div>
+
                           <span className="text-xs font-bold text-gray-400">@crypto_dave</span>
                       </div>
                   </SoftCard>
@@ -241,51 +249,44 @@ export default function LandingPage({ onLaunchApp }) {
           </div>
       </section>
 
-      {/* --- CTA / FOOTER --- */}
-      <section className="py-24 px-6 relative">
-          <div className="max-w-4xl mx-auto text-center">
-              <SoftCard className="!p-12 bg-gradient-to-br from-[#1A1E2C] to-gray-900 text-white border-none">
-                  <h2 className="text-3xl md:text-4xl font-black mb-6">Ready to play?</h2>
-                  
-                  {!signedUp ? (
-                      <form onSubmit={handleSignup} className="max-w-sm mx-auto flex flex-col gap-3">
-                          <input 
-                            type="email" 
-                            placeholder="Enter your email" 
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl text-gray-900 font-bold outline-none focus:ring-2 focus:ring-blue-500"
-                            required
-                          />
-                          <button type="submit" className="w-full py-3 bg-blue-600 rounded-xl font-bold hover:bg-blue-500 transition-colors">
-                              Get the App Link
-                          </button>
-                          <p className="text-xs text-gray-500 mt-2">No spam. Only chaos.</p>
-                      </form>
-                  ) : (
-                      <div className="animate-fade-in">
-                          <div className="inline-flex items-center justify-center w-12 h-12 bg-green-500 rounded-full mb-4">
-                              <Check size={24} className="text-white"/>
-                          </div>
-                          <p className="font-bold text-lg">You're on the list!</p>
-                          <button onClick={launch} className="mt-6 text-sm font-bold text-blue-400 underline">
-  Go to Web App Now &rarr;
-</button>
+     {/* --- CTA / FOOTER --- */}
+<section className="py-24 px-6 relative">
+  <div className="max-w-4xl mx-auto text-center">
+    <SoftCard className="!p-12 bg-gradient-to-br from-[#1A1E2C] to-gray-900 text-white border-none">
+      <h2 className="text-3xl md:text-4xl font-black mb-4">Ready to play?</h2>
+      <p className="text-sm md:text-base text-white/70 font-medium mb-8">
+        No account required. Build your deck in under a minute.
+      </p>
 
-                      </div>
-                  )}
-              </SoftCard>
-              
-              <div className="mt-12 flex flex-col md:flex-row justify-between items-center text-xs font-bold text-gray-400 gap-4">
-                  <p>© 2026 Doomgo Inc.</p>
-                  <div className="flex gap-6">
-                      <a href="#" className="hover:text-indigo-500">Privacy Policy</a>
-                      <a href="#" className="hover:text-indigo-500">Terms of Service</a>
-                      <a href="#" className="hover:text-indigo-500">Contact</a>
-                  </div>
-              </div>
-          </div>
-      </section>
+      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <button
+          onClick={launch}
+          className="px-8 py-4 bg-white text-[#1A1E2C] rounded-2xl font-black text-lg shadow-xl hover:scale-105 active:scale-95 transition-all inline-flex items-center justify-center gap-2"
+        >
+          <Play size={20} fill="currentColor" />
+          Open the App
+        </button>
+
+        <a
+          href="/privacy.html"
+          className="px-8 py-4 bg-white/10 text-white rounded-2xl font-bold text-lg border border-white/15 hover:bg-white/15 transition-all inline-flex items-center justify-center"
+        >
+          Privacy
+        </a>
+      </div>
+
+      <div className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-bold text-white/60">
+        <a href="/privacy.html" className="hover:text-white" target="_blank" rel="noreferrer">Privacy Policy</a>
+        <a href="/terms.html" className="hover:text-white" target="_blank" rel="noreferrer">Terms of Service</a>
+        <a href="/contact.html" className="hover:text-white" target="_blank" rel="noreferrer">Contact</a>
+      </div>
+    </SoftCard>
+
+    <div className="mt-10 text-xs font-bold text-gray-400">
+      © 2026 Doomgo Inc.
+    </div>
+  </div>
+</section>
 
       <style>{`
         .animate-bounce-slow { animation: bounce 3s infinite; }

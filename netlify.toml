@@ -5,12 +5,30 @@
 [functions]
   directory = "netlify/functions"
 
+# --- Static legal pages (must be ABOVE the SPA catch-all) ---
 [[redirects]]
-from = "/admin/*"
-to = "/index.html"
-status = 200
+  from = "/privacy"
+  to = "/privacy.html"
+  status = 200
 
 [[redirects]]
-from = "/*"
-to = "/index.html"
-status = 200
+  from = "/terms"
+  to = "/terms.html"
+  status = 200
+
+[[redirects]]
+  from = "/contact"
+  to = "/contact.html"
+  status = 200
+
+# --- Admin (SPA route) ---
+[[redirects]]
+  from = "/admin/*"
+  to = "/index.html"
+  status = 200
+
+# --- SPA catch-all (MUST be last) ---
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
