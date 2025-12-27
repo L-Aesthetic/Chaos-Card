@@ -803,7 +803,7 @@ useEffect(() => {
 }, [syncAiCreditsWithPolicy]);
 
 
-// --- PRESENCE: create/update anonymous profile so Admin dashboard sees users ---
+// --- PRESENCE: create/update profile so Admin dashboard sees users + Pro linkage works ---
 useEffect(() => {
   if (!adminState) return;
 
@@ -811,21 +811,26 @@ useEffect(() => {
 
   const upsertProfile = async () => {
     try {
-      // You can rename columns to match your profiles table.
+      const { data } = await supabase.auth.getSession();
+      const uid = data?.session?.user?.id || null;
+
+      const payload = {
+        device_id: deviceId,
+        auth_user_id: uid, // ✅ critical for Plus + webhook linkage
+        last_seen_at: new Date().toISOString(),
+        region: getRegionGuess(),
+        user_agent: navigator.userAgent,
+      };
+
+      // ✅ If logged in, upsert on auth_user_id (recommended unique)
+      // ✅ Else, upsert on device_id
+      const conflictKey = uid ? "auth_user_id" : "device_id";
+
       const { error } = await supabase
-  .from("profiles")
-  .upsert(
-    {
-      device_id: deviceId,
-      last_seen_at: new Date().toISOString(),
-      region: getRegionGuess(),
-      user_agent: navigator.userAgent,
-    },
-    { onConflict: "device_id" }
-  );
+        .from("profiles")
+        .upsert(payload, { onConflict: conflictKey });
 
-if (error) console.warn("Presence upsert failed:", error);
-
+      if (error) console.warn("Presence upsert failed:", error);
     } catch (e) {
       console.warn("Presence upsert failed:", e);
     }
@@ -833,10 +838,10 @@ if (error) console.warn("Presence upsert failed:", error);
 
   upsertProfile();
 
-  // heartbeat every 60s while the tab is open
   const t = setInterval(upsertProfile, 60000);
   return () => clearInterval(t);
 }, [adminState]);
+
 
 
 useEffect(() => {
@@ -1016,6 +1021,33 @@ const applyYearlyOverrides = (board) => {
   return board.map((t, i) => (ov[i] ? { ...t, ...ov[i] } : t));
 };
 
+// ✅ Always keep branded/canon center tile (prevents "FREE SPACE / Free space" double text)
+const getCanonCenterText = useCallback(() => {
+  const fromAdmin = adminState?.canonDeck?.[12]?.text;
+  const fromCore = coreBoard?.[12]?.text;
+  const year = Number(adminState?.activeYear ?? 2026);
+
+  return fromAdmin || fromCore || `DOOMGO ${year}`;
+}, [adminState, coreBoard]);
+
+const applyCanonCenter = useCallback((board) => {
+  if (!Array.isArray(board) || board.length !== 25) return board;
+
+  const centerText = getCanonCenterText();
+  return board.map((t, i) =>
+    i === 12
+      ? {
+          ...t,
+          text: centerText,
+          category: t.category || "Special",
+          hit: true,
+          locked: true,
+          confidence: 100,
+        }
+      : t
+  );
+}, [getCanonCenterText]);
+
 
 const isPastJan1ForActiveYear = () => {
   const year = Number(adminState?.activeYear ?? 2026); // falls back to 2026 if missing
@@ -1064,7 +1096,7 @@ const unfreezeSystem = async () => {
 
   openConfirm(`Restore your pinned ${type} deck?`, () => {
     saveToHistory();
-    setMyBoard(normalizeBoard(pinned.board));
+    setMyBoard(applyCanonCenter(normalizeBoard(pinned.board)));
     setActiveBoardType(type);
     previousWinCount.current = calculateWinningLines(pinned.board);
     if (appSettings.haptics) vibrate(50);
@@ -1112,7 +1144,7 @@ const pinCurrentDeck = () => {
       const lastState = boardHistory[boardHistory.length - 1];
       
       openConfirm(`Rewind to previous board state (${lastState.type})?`, () => {
-          setMyBoard(normalizeBoard(lastState.board));
+          setMyBoard(applyCanonCenter(normalizeBoard(lastState.board)));
           setActiveBoardType(lastState.type);
           
           setBoardHistory(prev => prev.slice(0, -1));
@@ -1157,26 +1189,29 @@ return;
       setSelectedSquare(sq); 
   };
 
-  const saveEdit = (newText) => {
+const saveEdit = (newText) => {
   if (!editingSquare) return;
 
   // 🧬 User is diverging from canon
-  // store per-tile override (yearly only)
-if (activeBoardType === "yearly") {
-  const ov = getYearlyOverrides();
-  ov[editingSquare.id] = { text: newText }; // you can also store category/confidence if you want
-  setYearlyOverrides(ov);
-}
+  if (activeBoardType === "yearly") {
+    // ✅ mark fork so admin canon pushes stop overwriting their card
+    localStorage.setItem("doomgo_user_forked", "true");
 
-const newBoard = myBoard.map(s =>
-  s.id === editingSquare.id ? { ...s, text: newText } : s
-);
+    // store per-tile override (yearly only)
+    const ov = getYearlyOverrides();
+    ov[editingSquare.id] = { text: newText };
+    setYearlyOverrides(ov);
+  }
 
+  const newBoard = myBoard.map((s) =>
+    s.id === editingSquare.id ? { ...s, text: newText } : s
+  );
 
   setMyBoard(newBoard);
   setIsBoardLocked(false);
   setEditingSquare(null);
 };
+
 
 
   const toggleHit = (id) => {
@@ -1427,7 +1462,7 @@ if (autoApply) {
 );
 
       
-      setMyBoard(newBoard);
+      setMyBoard(applyCanonCenter(newBoard));
       previousWinCount.current = 0; 
       
       if (activeBoardType === 'yearly' && (type === 'chaos' || type === 'yearly')) {
@@ -1456,7 +1491,7 @@ if (autoApply) {
     locked: i === 12
   }));
 
-  setPreviewDeck(newBoard);
+  setPreviewDeck(applyCanonCenter(newBoard));
   setPreviewTitle(title);
   setPreviewType(type);
 };
@@ -1478,14 +1513,15 @@ const activatePreviewDeck = () => {
   }))
 );
 
-setMyBoard(safeBoard);
+const centered = applyCanonCenter(safeBoard);
+setMyBoard(centered);
 previousWinCount.current = 0;
 setActiveBoardType(previewType);
 
 // ✅ write a board row for analytics
 logBoardEvent({
   boardType: previewType,
-  board: safeBoard,
+  board: centered,
   locked: false,
   source: "preview_activate",
 });

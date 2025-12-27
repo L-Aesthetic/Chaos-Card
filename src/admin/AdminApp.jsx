@@ -10,7 +10,7 @@ import {
   Play, Pause, Flame, Search, Check,
   Calendar, CreditCard, X, Crown, Menu,
   LayoutDashboard, MapPin, TrendingUp,
-  LogOut, Mail, Key, ArrowUpRight,
+  LogOut, Mail, Key,
   Layers, DollarSign
 } from 'lucide-react';
 import { 
@@ -82,10 +82,34 @@ const TABLES = {
 };
 
 
+// Normalize region/locale strings so "US@posix" and "en_US@posix" become "US"
+const normalizeRegion = (raw) => {
+  if (!raw) return "Unknown";
+
+  const s = String(raw).trim();
+
+  // remove POSIX / variant modifiers: "US@posix" -> "US"
+  const noModifier = s.replace(/@.*$/i, "");
+
+  // if it looks like a locale: "en_US" or "en-US" -> grab country
+  const m = noModifier.match(/[-_](\w{2})\b/);
+  if (m?.[1]) return m[1].toUpperCase();
+
+  // if it already looks like a 2-letter country/region code
+  if (/^[A-Za-z]{2}$/.test(noModifier)) return noModifier.toUpperCase();
+
+  // if you ever stored "NA/EU/AS" style short regions, keep them stable
+  if (/^[A-Za-z]{2,3}$/.test(noModifier)) return noModifier.toUpperCase();
+
+  return noModifier || "Unknown";
+};
+
 // Try to read a "region" value from user row (customize this once and you're done)
-const getUserRegion = (u) => (
-  u?.region || u?.country || u?.country_code || u?.locale || 'Unknown'
-);
+const getUserRegion = (u) => {
+  const raw = u?.region || u?.country || u?.country_code || u?.locale;
+  return normalizeRegion(raw);
+};
+
 
 const startOfDay = (d) => {
   const x = new Date(d);
@@ -785,23 +809,20 @@ const fetchGrowthSeries = async (range) => {
         {/* Geographic Distribution */}
         <div className="space-y-6">
              <Card title={<><Globe size={20} className="text-[#4D9BFF]"/> Top Regions</>}>
-                <div className="space-y-4">
-                    {regionData.map((region, i) => (
-                        <div key={i} className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="w-2 h-2 rounded-full" style={{backgroundColor: region.color}} />
-                                <span className="text-sm font-bold text-slate-700">{region.name}</span>
-                            </div>
-                            <span className="text-sm font-mono font-bold text-slate-500">{region.users.toLocaleString()}</span>
-                        </div>
-                    ))}
-                </div>
-                <div className="mt-6 pt-4 border-t border-slate-50">
-                    <button className="w-full text-xs font-bold text-[#6A4DFF] hover:text-[#5839ff] flex items-center justify-center gap-1">
-                        View Full Map <ArrowUpRight size={12}/>
-                    </button>
-                </div>
-             </Card>
+  <div className="space-y-4">
+    {regionData.map((region, i) => (
+      <div key={i} className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: region.color }} />
+          <span className="text-sm font-bold text-slate-700">{region.name}</span>
+        </div>
+        <span className="text-sm font-mono font-bold text-slate-500">
+          {region.users.toLocaleString()}
+        </span>
+      </div>
+    ))}
+  </div>
+</Card>
              
              <Card>
                 <div className="flex items-center justify-between mb-2">
