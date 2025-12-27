@@ -227,7 +227,7 @@ export default function LandingPage({ onLaunchApp }) {
 </div>
 
                          <div className="ml-4 text-left">
-                             <p className="text-xs font-bold">2k+ Players</p>
+                             <p className="text-xs font-bold">15K+ Players</p>
                              <div className="flex text-yellow-400 text-[10px]">★★★★★</div>
                          </div>
                     </div>
@@ -244,8 +244,8 @@ export default function LandingPage({ onLaunchApp }) {
                     <div className="flex items-center gap-2">
                         <span className="text-xl">👽</span>
                         <div className="text-left">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase">Highest voted probable</p>
-                            <p className="text-xs font-bold">Aliens Land</p>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase">Highest voted</p>
+                            <p className="text-xs font-bold">Aliens Land in Florida</p>
                         </div>
                     </div>
                 </SoftCard>
@@ -290,7 +290,7 @@ export default function LandingPage({ onLaunchApp }) {
               <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
                   <h2 className="text-3xl font-black max-w-xs">Don't just watch 2026 happen. Predict it.</h2>
                   <div className="text-right hidden md:block">
-                      <p className="text-4xl font-black text-indigo-600">2,402</p>
+                      <p className="text-4xl font-black text-indigo-600">18,452</p>
                       <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Boards Created</p>
                   </div>
               </div>
