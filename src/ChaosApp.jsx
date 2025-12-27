@@ -1976,8 +1976,42 @@ const showCrown = isFree || isWinningLine;
 <GeometricShape type="sphere" className="bottom-10 -left-10 opacity-[0.20] scale-75" />
                  <div className="flex items-center gap-4 mb-6"><button onClick={() => setPreviewDeck(null)} className="p-2 bg-gray-200 rounded-full"><ArrowRight className="rotate-180" size={20}/></button><h2 className="text-3xl font-black text-[#1A1E2C]">{previewTitle}</h2></div>
                  <div className="grid grid-cols-5 gap-2 mb-8 opacity-75 grayscale hover:grayscale-0 transition-all">
-                    {previewDeck.map(sq => (<div key={sq.id} className={`aspect-square rounded-xl p-1 flex flex-col items-center justify-center text-center relative overflow-hidden bg-white shadow-sm border border-gray-100`}><p className="text-[8px] font-bold leading-tight line-clamp-3 select-none text-gray-600">{sq.text}</p>{sq.locked && <div className="absolute inset-0 flex items-center justify-center bg-gray-100/50"><Crown size={12} className="opacity-50"/></div>}</div>))}
-                </div>
+  {previewDeck.map((sq, idx) => {
+    const isCenter = idx === 12;
+
+    return (
+      <div
+        key={sq.id}
+        className="aspect-square rounded-xl p-1 flex flex-col items-center justify-center text-center relative overflow-hidden bg-white shadow-sm border border-gray-100"
+      >
+        {/* Crown in corner (NO overlay) */}
+        {isCenter && (
+          <Crown
+            size={12}
+            className="absolute top-1 left-1 text-amber-500/80"
+          />
+        )}
+
+        {/* Give center tile text a tiny top padding so it never touches the crown */}
+        <p
+          className={`text-[8px] font-bold leading-tight line-clamp-3 select-none text-gray-600 ${
+            isCenter ? "pt-2" : ""
+          }`}
+        >
+          {isCenter ? cleanCenterTileText(sq.text) : sq.text}
+        </p>
+
+        {/* Optional little helper label like your HomeView */}
+        {isCenter && (
+          <p className="text-[7px] font-black tracking-wide text-gray-400 text-center leading-none mt-0.5">
+            Free space
+          </p>
+        )}
+      </div>
+    );
+  })}
+</div>
+
                 <div className="space-y-3"><button onClick={activatePreviewDeck} className="w-full py-4 bg-[#1A1E2C] text-white rounded-2xl font-bold shadow-xl flex items-center justify-center gap-2 text-lg active:scale-95 transition-transform"><Play size={20} fill="currentColor"/> Start This Game</button><p className="text-center text-xs text-gray-400 px-4">
   {isPro ? "Plus: Unlimited AI ✅" : `This deck cost 1 AI credit to generate. (${aiCredits} left)`}
 </p>
