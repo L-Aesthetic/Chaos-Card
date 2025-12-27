@@ -1,17 +1,23 @@
 // src/App.jsx
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ChaosApp from "./ChaosApp";
 import AdminApp from "./admin/AdminApp";
+import Landing from "./Landing";
 
 export default function App() {
   return (
-    <Routes>
-      {/* Admin section */}
-      <Route path="/admin/*" element={<AdminApp />} />
+    <BrowserRouter>
+      <Routes>
+        {/* Landing page */}
+        <Route path="/landing" element={<Landing />} />
 
-      {/* Everything else */}
-      <Route path="/*" element={<ChaosApp />} />
-    </Routes>
+        {/* Main app */}
+        <Route path="/" element={<ChaosApp />} />
+
+        {/* Admin */}
+        <Route path="/admin/*" element={<AdminApp />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
